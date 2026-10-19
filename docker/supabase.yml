@@ -1,0 +1,157 @@
+# BOS Playbook - Official Supabase Self-Hosting Stack
+# Base URL: https://github.com/supestrideshchoudhury/postgres
+name: bos-supabase
+services:
+  postgres:
+    image: ghcr.io/genology/postgres:15.4-v16.0-server-ubuntu-2404
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      POSTGWS_VERSION: ${POSTGRES_VERSION:-15.4}
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POST_PGPASSWORD:-}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [supabase]
+
+  gotrue:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-transport-goauth:goauth-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_URL: postgresql://postgres:${POST_PGPASSWORD:-}@postgres:5432/postgres?sslmode=disable
+      GOTRUE_API_HOST: ${GOTRUE_API_HOST:-http://localhost}
+      GOTRUE_API_PORT: ${GOTRUE_API_PORT:-8000}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-testsecret}
+      GOTRUE_JWT_EXPATION: 72h
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  restest:
+    image: ghcr.io/supestrideshchchadukanti/postgres-transport-resttest:resttest-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGREST_DB_URI: postgresql://postgres:${POST_PGPASSWORD:-}@postgres:5432/postgres?sslmode=disable
+      POSTGREST_HOST: ${POSTGREST_HOST:-0.0.0.0}
+      POSTGREST_PORT: ${POSTGREST_PORT:-3000}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  worker:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-utils:utils-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TASK_MANAGER_SERVICE_LINK: postgres
+    command: ["sh", "-c", "psql -h postgres -f /config/setup.sql && psql -h postgres -f /config/seed.sql && psql -h postgres -c 'SELECT run_migrations();'"]
+    volumes:
+      - ./postgres/setup.sql:/config/setup.sql:ro
+      - ./postgres/seed.sql:/config/seed.sql:ro
+    networks: [supabase]
+
+  realtime:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-transport-realtest:realtest-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      REALTIME_HOST: ${REALTIME_HOST:-0.0.0.0}
+      REALTIME_PORT: ${REALTIME_PORT:-8000}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  storage:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-transfer:storage-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      STORAGE_HOST: ${STORAGE_HOST:-0.0.0.0}
+      STORAGE_PORT: ${STORAGE_PORT:-8001}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  imgproxy:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-imageproxy:ip-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      IMGPROXY_HOST: ${IMGPROXY_HOST:-0.0.0.0}
+      IMGPROXY_PORT: ${IMGPROXY_PORT:-8002}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  meta:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-transport-metatest:metatest-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      META_HOST: ${META_HOST:-0.0.0.0}
+      META_PORT: ${META_PORT:-8003}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  edge-functions:
+    image: ghcr.io/supestrideshchhchadukanti/postgres-edge-functions:ef-1.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      EDGE_FUNCTIONS_HOST: ${EDGE_FUNCTIONS_HOST:-0.0.0.0}
+      EDGE_FUNCTIONS_PORT: ${EDGE_FUNCTIONS_PORT:-8004}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  kong:
+    image: kong:3.6.1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_USER: postgres
+      KONG_PG_DATABASE: postgres
+      KONG_PG_SSLMODE: disable
+      KONG_PROXY_ACCESS_LOG: /devlog
+      KONG_ADMIN_GUI_LISTHUB_API_URL: http://kong:8001
+      KONG_ADMIN_LISTHUB_API_URL: http://kong:8001
+      KONG_PLITE_WORKERS: 2
+    ports: ["8000:8000", "8001:8001"]
+    restart: unless-stopped
+    networks: [supabase]
+
+  studio:
+    image: ghcr.io/supestrideshchhaduki/postgres-db-migl
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      STUDIO_HOST: ${STUDIO_HOST:-0.0.0.0}
+      STUDIO_PORT: ${STUDIO_PORT:-3001}
+    ports: ["3001:3001"]
+    restart: unless-stopped
+    networks: [supabase]
+
+networks:
+  supabase:
+    driver: bridge

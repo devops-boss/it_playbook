@@ -1,0 +1,169 @@
+version: '3.8'
+
+services:
+  # Supabase stack (from official self-host setup, customized)
+  db:
+    image: supabase/postgres:15.4.0
+    container_name: bos-db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bos-network
+
+  auth:
+    image: supabase/gotrue:2.110.0
+    container_name: bos-auth
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      GOTRUE_API_HOST: auth
+      GOTRUE_API_PORT: 8000
+      GOTRUE_SITE_URL: http://localhost
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-supersecretjwtkeychangethis}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_MAILER_URLPATHS_INVITATION: "/invitation"
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: "/confirmation"
+      GOTRUE_MAILER_URLPATHS_RECOVERY: "/recovery"
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: "/email_change"
+    networks:
+      - bos-network
+
+  rest:
+    image: supabase/postgrest:14.0.1
+    container_name: bos-rest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGREST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      POSTGREST_HOST: rest
+      POSTGREST_PORT: 3000
+      POSTGREST_PGRST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      POSTGREST_PGRST_DB_SCHEMA: public
+      POSTGREST_PGRST_DB_ANON_ROLE: anon
+      POSTGREST_PGRST_MAX_ROWS: 100
+      POSTGREST_PGRST_ENABLE_EXPLAIN: "false"
+    networks:
+      - bos-network
+
+  realtime:
+    image: supabase/realtime:2.29.8
+    container_name: bos-realtime
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      REALEST_HOST: realtime
+      REALEST_PORT: 8000
+    networks:
+      - bos-network
+
+  storage:
+    image: supabase/storage:2.36.1
+    container_name: bos-storage
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      STORAGE_HOST: storage
+      STORAGE_PORT: 8001
+      STORAGE_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
+      STORAGE_BACKUP_BUCKET_NAME: backups
+      STORAGE_BACKUP_BUCKET_REGION: us-east-1
+      STORAGE_BACKUP_ACCESS_KEY_ID: minioadmin
+      STORAGE_BACKUP_SECRET_ACCESS_KEY: minioadmin
+      STORAGE_FILE_KEY_LIMIT: 524288000
+      STORAGE_BACKUP_ENABLED: "true"
+    networks:
+      - bos-network
+
+  imgproxy:
+    image: supabase/imgproxy:3.23.0
+    container_name: bos-imgproxy
+    depends_on:
+      storage:
+        condition: service_started
+    environment:
+      IMGPROXY_BIND: 0.0.0.0:8002
+      IMGPROXY_MAX_WORKERS: 4
+      IMGPROXY_LOG_LEVEL: info
+    networks:
+      - bos-network
+
+  kong:
+    image: kong:3.6.1
+    container_name: bos-kong
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: db
+      KONG_PG_USER: ${POSTGRES_USER:-postgres}
+      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      KONG_PG_DATABASE: ${POSTGRES_DB:-postgres}
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_PLUGINS: bundled,key-auth,oidc,hmac-auth,jwt,acl,cors,oauth2,mtls-auth,request-termination,request-size-limit,rate-limiting,response-ratelimiting,request-transformer,response-transformer,request-logging,response-logging,deprecation,vault,proxy-cache,proxy-cache-advanced,proxy-cache-via-post
+    networks:
+      - bos-network
+
+  # Frontend application
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: bos-frontend
+    depends_on:
+      - rest
+      - realtime
+      - storage
+      - auth
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: http://kong:8000
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzI2NzgwMCwiZXhwIjoyMDkzMDI0MDAwfQ.31J4w3UjW2T1a8sY9dV4z3fX5gH6jK7lM9nO1pQ2rS3tU4vW5xY6z}
+    ports:
+      - "3000:3000"
+    networks:
+      - bos-network
+    restart: unless-stopped
+
+  # Reverse proxy (Nginx)
+  nginx:
+    image: nginx:alpine
+    container_name: bos-nginx
+    depends_on:
+      - frontend
+      - kong
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx:/etc/nginx/conf.d
+      - ./docker/certs:/etc/nginx/certs:ro
+    networks:
+      - bos-network
+    restart: unless-stopped
+
+networks:
+  bos-network:
+    driver: bridge
+
+volumes:
+  db_data:
