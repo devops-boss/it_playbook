@@ -49,7 +49,14 @@ BEGIN
     SELECT id INTO v_admin_id FROM auth.users LIMIT 1;
   END IF;
 
-  -- Resolve Accounts
+  -- Resolve Accounts (ensure default accounts exist if running on clean db)
+  INSERT INTO pb_accounts (code, name, client_name, is_active)
+  VALUES 
+    ('HC', 'Health Carousel', 'Health Carousel LLC', true),
+    ('MVRH', 'Miami Valley Hospital', 'Premier Health Partners', true),
+    ('IL', 'Intelligent Locations', 'Intelligent Locations Inc.', true)
+  ON CONFLICT (code) DO NOTHING;
+
   SELECT id INTO v_hc_id FROM pb_accounts WHERE code = 'HC';
   SELECT id INTO v_mvrh_id FROM pb_accounts WHERE code = 'MVRH';
   SELECT id INTO v_il_id FROM pb_accounts WHERE code = 'IL';
