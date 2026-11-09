@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     if (!verifyOtp(cleanEmail, cleanOtp)) {
       return NextResponse.json(
-        { error: 'Invalid or expired OTP code. Please check your email or use test OTP 849201.' },
+        { error: 'Invalid or expired OTP code. Please check your email for the code.' },
         { status: 400 }
       );
     }
@@ -32,6 +32,23 @@ export async function POST(request: NextRequest) {
     const kongUrl = process.env.INTERNAL_API_URL || 'http://kong:8000';
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     const internalPassword = process.env.DEMO_USER_PASSWORD || 'hbkPmen_KuZ~JjwV4ZqB';
+
+    // Auto-ensure user exists and has matching password in auth.users
+    try {
+      await fetch(`${kongUrl}/rest/v1/rpc/ensure_authenticated_user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
+          p_email: cleanEmail,
+          p_password: internalPassword,
+        }),
+      });
+    } catch {
+      // ignore if offline or unneeded
+    }
 
     let tokenRes: Response;
     try {

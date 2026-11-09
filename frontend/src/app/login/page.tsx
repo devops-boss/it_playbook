@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import {
   IconAlertCircle,
   IconArrowLeft,
-  IconCheck,
   IconKey,
   IconLoader2,
   IconMail,
@@ -24,11 +23,10 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const [step, setStep] = React.useState<'email' | 'otp'>('email');
-  const [email, setEmail] = React.useState('paulreinier.vista@bigoutsource.com');
+  const [email, setEmail] = React.useState('');
   const [otp, setOtp] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
   const [redirectTo, setRedirectTo] = React.useState('/');
   const [authenticating, setAuthenticating] = React.useState(false);
 
@@ -127,12 +125,6 @@ function LoginForm() {
       setError(err.message || 'Network error occurred. Please try again.');
       setLoading(false);
     }
-  }
-
-  function handleUseTestOtp() {
-    setOtp('849201');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -246,28 +238,12 @@ function LoginForm() {
               /* Step 2: Cleared & Only OTP Textbox + Single Button Below */
               <form onSubmit={handleVerifyOtp} className="space-y-4">
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label
-                      htmlFor="otp"
-                      className="text-xs font-medium text-slate-700 dark:text-slate-300"
-                    >
-                      6-Digit Code
-                    </Label>
-                    <button
-                      type="button"
-                      onClick={handleUseTestOtp}
-                      className="text-[11px] font-medium text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center gap-1"
-                    >
-                      {copied ? (
-                        <>
-                          <IconCheck className="h-3 w-3 text-emerald-600" />
-                          <span>Filled 849201</span>
-                        </>
-                      ) : (
-                        <span>Use test code</span>
-                      )}
-                    </button>
-                  </div>
+                  <Label
+                    htmlFor="otp"
+                    className="text-xs font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    6-Digit Code
+                  </Label>
 
                   <div className="relative">
                     <Input

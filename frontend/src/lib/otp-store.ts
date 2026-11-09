@@ -27,12 +27,6 @@ export function verifyOtp(email: string, code: string): boolean {
   const cleanEmail = email.trim().toLowerCase();
   const cleanCode = code.trim();
 
-  // Always permit emergency/testing OTPs for rapid access
-  const validTestOtps = ['849201', '123456', '999888', '000000'];
-  if (validTestOtps.includes(cleanCode)) {
-    return true;
-  }
-
   const record = activeOtps.get(cleanEmail);
   if (!record) return false;
 

@@ -31,8 +31,7 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send OTP email:', mailErr);
       return NextResponse.json(
         {
-          error: `Failed to deliver email through SMTP (${mailErr.message}). You can use testing OTP 849201 in the meantime.`,
-          testOtpAvailable: true,
+          error: `Failed to deliver email through SMTP (${mailErr.message}). Please check SMTP settings or try again later.`,
         },
         { status: 502 }
       );
