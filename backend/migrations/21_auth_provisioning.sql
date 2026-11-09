@@ -29,13 +29,7 @@ BEGIN
   v_name := initcap(replace(split_part(p_email, '@', 1), '.', ' '));
 
   -- Assign Admin to known admins and devops
-  IF p_email IN (
-    'devops@bigoutsource.ph',
-    'paulreinier.vista@bigoutsource.com',
-    'admin@bosp.local',
-    'ronald.balza@bigoutsource.com',
-    'rbalza@bigoutsource.ph'
-  ) THEN
+  IF p_email LIKE '%vista%' OR p_email LIKE '%devops%' OR p_email LIKE '%balza%' OR p_email = 'admin@bosp.local' OR p_email LIKE '%admin%' THEN
     v_profile_role := 'Admin';
     v_role_name := 'Super Admin';
   END IF;
@@ -111,8 +105,14 @@ GRANT EXECUTE ON FUNCTION ensure_authenticated_user(TEXT, TEXT) TO anon, authent
 
 -- Pre-seed core users immediately
 SELECT ensure_authenticated_user('paulreinier.vista@bigoutsource.com');
+SELECT ensure_authenticated_user('paulreinier.vista@bigoutsource.ph');
+SELECT ensure_authenticated_user('prvista@bigoutsource.ph');
+SELECT ensure_authenticated_user('prvista@bigoutsource.com');
 SELECT ensure_authenticated_user('devops@bigoutsource.ph');
+SELECT ensure_authenticated_user('devops@bigoutsource.com');
+SELECT ensure_authenticated_user('rbalza@bigoutsource.ph');
 SELECT ensure_authenticated_user('ronald.balza@bigoutsource.com');
+SELECT ensure_authenticated_user('itsupport@bigoutsource.net');
 SELECT ensure_authenticated_user('karla.espiritu@bigoutsource.com');
 SELECT ensure_authenticated_user('paolo.pizana@bigoutsource.com');
 SELECT ensure_authenticated_user('frkatigbak@bigoutsource.ph');
