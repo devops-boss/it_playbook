@@ -476,6 +476,8 @@ services:
       # holds the anon key and the user's own session.
       NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_API_URL: http://kong:8000
       NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-BOS Playbook}
       NEXT_PUBLIC_APP_LOGO: ${NEXT_PUBLIC_APP_LOGO:-/logo.png}
       NEXT_PUBLIC_ACCENT_COLOR: ${NEXT_PUBLIC_ACCENT_COLOR:-#2563eb}

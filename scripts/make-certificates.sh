@@ -123,7 +123,10 @@ subjectAltName         = @alt_names
 [alt_names]
 DNS.1 = ${DOMAIN}
 DNS.2 = localhost
+DNS.3 = playbook.test.local
 IP.1  = 127.0.0.1
+IP.2  = 100.122.173.113
+IP.3  = 192.168.3.60
 ${IP_EXTRA}
 EOF
 
