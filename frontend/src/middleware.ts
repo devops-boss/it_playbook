@@ -10,14 +10,22 @@ import { createServerClient } from '@supabase/ssr';
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url =
+    process.env.INTERNAL_API_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    'http://kong:8000';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   // Without configuration there is nothing to refresh; let the request
   // through so the login page can show a helpful message.
-  if (!url || !anonKey) return response;
+  if (!anonKey) return response;
 
   const supabase = createServerClient(url, anonKey, {
+    cookieOptions: {
+      name: 'bos-auth-token',
+      path: '/',
+      sameSite: 'lax',
+    },
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -32,9 +40,13 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch {
+    user = null;
+  }
 
   const { pathname } = request.nextUrl;
 

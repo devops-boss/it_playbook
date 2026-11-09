@@ -110,17 +110,19 @@ function LoginForm() {
 
       // Synchronize browser-side supabase client session
       if (data.session) {
-        const supabase = createClient();
-        await supabase.auth.setSession(data.session);
+        try {
+          const supabase = createClient();
+          await supabase.auth.setSession(data.session);
+        } catch {
+          // ignore
+        }
       }
 
-      // Brief inline "logging in" state, then redirect without a fullscreen overlay
+      // Hard navigation ensures fresh session cookies are sent and dashboard loads cleanly
       setAuthenticating(true);
       setTimeout(() => {
-        setAuthenticating(false);
-        router.push(redirectTo);
-        router.refresh();
-      }, 850);
+        window.location.href = redirectTo || '/';
+      }, 400);
     } catch (err: any) {
       setError(err.message || 'Network error occurred. Please try again.');
       setLoading(false);

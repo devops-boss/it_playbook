@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import crypto from 'crypto';
-
+import { AUTH_COOKIE_NAME } from '@/lib/supabase/client';
 import { verifyOtp } from '@/lib/otp-store';
-
-function signJwt(payload: Record<string, any>, secret: string): string {
-  const b64 = (obj: any) => Buffer.from(JSON.stringify(obj)).toString('base64url');
-  const header = b64({ alg: 'HS256', typ: 'JWT' });
-  const data = b64(payload);
-  const signature = crypto
-    .createHmac('sha256', secret)
-    .update(`${header}.${data}`)
-    .digest('base64url');
-  return `${header}.${data}.${signature}`;
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,15 +30,13 @@ export async function POST(request: NextRequest) {
 
     const kongUrl = process.env.INTERNAL_API_URL || 'http://kong:8000';
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    const jwtSecret = process.env.JWT_SECRET;
+    const serviceRoleKey = process.env.SERVICE_ROLE_KEY || '';
     const internalPassword = process.env.DEMO_USER_PASSWORD || 'hbkPmen_KuZ~JjwV4ZqB';
-
-    let resolvedUserId: string | null = null;
     const displayName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
 
-    // 1. Ensure user and profile exist in database via RPC
+    // 1. Try to ensure user exists via database RPC (with 3-second timeout so it never hangs)
     try {
-      const ensureRes = await fetch(`${kongUrl}/rest/v1/rpc/ensure_authenticated_user`, {
+      await fetch(`${kongUrl}/rest/v1/rpc/ensure_authenticated_user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,118 +46,88 @@ export async function POST(request: NextRequest) {
           p_email: cleanEmail,
           p_password: internalPassword,
         }),
+        signal: AbortSignal.timeout(3000),
       });
-      if (ensureRes.ok) {
-        const ensureData = await ensureRes.json();
-        if (ensureData && ensureData.user_id) {
-          resolvedUserId = ensureData.user_id;
-        }
-      }
     } catch {
+      // RPC may not be present if migrations are pending; continue to GoTrue
+    }
+
+    // 2. Perform GoTrue password authentication via internal Kong (fast, local)
+    let tokenRes: Response | null = null;
+    let tokenData: any = null;
+
+    try {
+      tokenRes = await fetch(`${kongUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: internalPassword,
+        }),
+        signal: AbortSignal.timeout(4000),
+      });
+      tokenData = await tokenRes.json();
+    } catch (e: any) {
       // ignore
     }
 
-    // 2. Direct cryptographic JWT generation (bulletproof - no password mismatches)
-    if (jwtSecret) {
-      const userId =
-        resolvedUserId ||
-        crypto.createHash('sha256').update(cleanEmail).digest('hex').slice(0, 32);
-
-      // Format as valid UUID if needed
-      const formattedUuid =
-        userId.length === 36
-          ? userId
-          : `${userId.slice(0, 8)}-${userId.slice(8, 12)}-4${userId.slice(13, 16)}-a${userId.slice(17, 20)}-${userId.slice(20, 32)}`;
-
-      const now = Math.floor(Date.now() / 1000);
-      const accessToken = signJwt(
-        {
-          aud: 'authenticated',
-          exp: now + 60 * 60 * 24 * 7, // 7 days
-          sub: formattedUuid,
-          email: cleanEmail,
-          phone: '',
-          app_metadata: { provider: 'email', providers: ['email'] },
-          user_metadata: { display_name: displayName },
-          role: 'authenticated',
-          session_id: crypto.randomUUID(),
-        },
-        jwtSecret
-      );
-
-      const refreshToken = signJwt(
-        {
-          aud: 'authenticated',
-          exp: now + 60 * 60 * 24 * 30, // 30 days
-          sub: formattedUuid,
-          role: 'authenticated',
-        },
-        jwtSecret
-      );
-
-      // Set cookies in Next.js cookie store
-      const cookieStore = cookies();
-      const publicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://playbook.test.local';
-
-      const supabase = createServerClient(publicUrl, anonKey, {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
+    // 3. If password grant was rejected and service_role_key is available, auto-create/sync user in GoTrue
+    if ((!tokenRes || !tokenRes.ok) && serviceRoleKey) {
+      try {
+        await fetch(`${kongUrl}/auth/v1/admin/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': serviceRoleKey,
+            'Authorization': `Bearer ${serviceRoleKey}`,
           },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          },
-        },
-      });
-
-      await supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      });
-
-      return NextResponse.json({
-        success: true,
-        session: {
-          access_token: accessToken,
-          refresh_token: refreshToken,
-          user: {
-            id: formattedUuid,
+          body: JSON.stringify({
             email: cleanEmail,
+            password: internalPassword,
+            email_confirm: true,
             user_metadata: { display_name: displayName },
+          }),
+          signal: AbortSignal.timeout(4000),
+        });
+
+        // Retry password authentication
+        tokenRes = await fetch(`${kongUrl}/auth/v1/token?grant_type=password`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': anonKey,
           },
-        },
-      });
+          body: JSON.stringify({
+            email: cleanEmail,
+            password: internalPassword,
+          }),
+          signal: AbortSignal.timeout(4000),
+        });
+        tokenData = await tokenRes.json();
+      } catch {
+        // ignore
+      }
     }
 
-    // Fallback via GoTrue password grant
-    const tokenRes = await fetch(`${kongUrl}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': anonKey,
-      },
-      body: JSON.stringify({
-        email: cleanEmail,
-        password: internalPassword,
-      }),
-    });
-
-    const tokenData = await tokenRes.json();
-
-    if (!tokenRes.ok || !tokenData.access_token) {
+    if (!tokenRes || !tokenRes.ok || !tokenData?.access_token) {
       const errMsg =
-        tokenData.error_description ||
-        tokenData.msg ||
-        `Account "${cleanEmail}" was not found in the Big Outsource directory.`;
+        tokenData?.error_description ||
+        tokenData?.msg ||
+        `Account "${cleanEmail}" could not be verified. Please make sure the admin account exists in the database.`;
       return NextResponse.json({ error: errMsg }, { status: 400 });
     }
 
+    // 4. Save session in HTTP cookies via Next.js SSR client using internal kongUrl
     const cookieStore = cookies();
-    const publicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://playbook.test.local';
-
-    const supabase = createServerClient(publicUrl, anonKey, {
+    const supabase = createServerClient(kongUrl, anonKey, {
+      cookieOptions: {
+        name: AUTH_COOKIE_NAME,
+        path: '/',
+        sameSite: 'lax',
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -194,9 +150,7 @@ export async function POST(request: NextRequest) {
       session: {
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
-      },
-      user: {
-        email: cleanEmail,
+        user: tokenData.user,
       },
     });
   } catch (err: any) {

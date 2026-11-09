@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { AUTH_COOKIE_NAME } from './client';
 
 /**
  * Server-side Supabase client for React Server Components and Route Handlers.
@@ -9,17 +10,22 @@ import { createServerClient } from '@supabase/ssr';
  */
 export function createClient() {
   const cookieStore = cookies();
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url =
+    process.env.INTERNAL_API_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    'http://kong:8000';
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url || !anonKey) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY. ' +
-        'Copy .env.example to .env and fill in the values.',
-    );
+  if (!anonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY.');
   }
 
   return createServerClient(url, anonKey, {
+    cookieOptions: {
+      name: AUTH_COOKIE_NAME,
+      path: '/',
+      sameSite: 'lax',
+    },
     cookies: {
       getAll() {
         return cookieStore.getAll();

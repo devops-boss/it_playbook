@@ -1,5 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr';
 
+export const AUTH_COOKIE_NAME = 'bos-auth-token';
+
 /**
  * Browser-side Supabase client.
  *
@@ -31,5 +33,11 @@ export function createClient() {
       ? window.location.origin
       : configuredUrl;
 
-  return createBrowserClient(url, anonKey);
+  return createBrowserClient(url, anonKey, {
+    cookieOptions: {
+      name: AUTH_COOKIE_NAME,
+      path: '/',
+      sameSite: 'lax',
+    },
+  });
 }
