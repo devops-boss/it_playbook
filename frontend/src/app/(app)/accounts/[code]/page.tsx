@@ -20,7 +20,7 @@ export async function generateMetadata({
   const accounts = await getAccessibleAccounts(user);
   const account = accounts.find((a) => a.code.toUpperCase() === params.code.toUpperCase());
   return {
-    title: account ? `${account.name} (${account.code}) | Big Outsource Playbook` : 'Account Playbook',
+    title: account ? `${account.name} (${account.code}) | IT Operations Playbook` : 'IT Operations Playbook',
     description: account?.description ?? 'Client incident management and troubleshooting playbooks.',
   };
 }

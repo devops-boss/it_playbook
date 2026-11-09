@@ -58,7 +58,6 @@ cookie.txt
 tok.json
 home.html
 
-# Real data files (excluded from repository)
-backend/seed/real_data.*
+# Real data files (local overrides only)
 backend/seed/*.local.*
 

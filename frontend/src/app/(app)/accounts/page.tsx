@@ -7,7 +7,7 @@ import { getAllAccountMetrics } from '@/lib/data/account-playbook';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Client Accounts Directory | Big Outsource IT Playbook',
+  title: 'Client Accounts Directory | IT Operations Playbook',
   description: 'Directory of all 26 client accounts with playbooks, metrics, and incident history.',
 };
 

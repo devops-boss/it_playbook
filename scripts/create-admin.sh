@@ -70,6 +70,11 @@ BEGIN
     ON CONFLICT (user_id, role_id) DO NOTHING;
   END IF;
 
+  -- Ensure user has access to all accounts
+  INSERT INTO pb_user_accounts (user_id, account_id)
+  SELECT v_user_id, a.id FROM pb_accounts a
+  ON CONFLICT (user_id, account_id) DO NOTHING;
+
   RAISE NOTICE 'SUCCESS: % (%) is ready!', p_name, p_email;
 END;
 $$ LANGUAGE plpgsql;

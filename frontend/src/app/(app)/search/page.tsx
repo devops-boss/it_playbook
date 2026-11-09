@@ -7,7 +7,7 @@ import { getCriteriaFields, getCategories } from '@/lib/data/criteria';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Search & Diagnosis | Big Outsource IT Playbook',
+  title: 'Search & Diagnosis | IT Operations Playbook',
   description: 'Instant sub-second search across troubleshooting playbooks, quick fixes, and HESK ticket tracking IDs.',
 };
 
