@@ -1,0 +1,529 @@
+/* ==========================================================================
+   BOS Playbook - Global Styles
+   Design tokens + locally bundled fonts. No external CDN at runtime.
+   ========================================================================== */
+
+/*
+   The two typefaces are declared in `src/app/layout.tsx` with
+   `next/font/local`, which reads the WOFF2 files out of `public/fonts`
+   and writes the @font-face rules itself. That way the files are
+   fingerprinted, preloaded and served with a long cache header, and
+   nothing is ever requested from a font service on the internet.
+
+   The variables they set (--font-sans, --font-mono) are used below and
+   by the Tailwind theme. The values in :root are the fallback for the
+   case where the font has not arrived yet, so the text is never laid
+   out in a font that is about to be replaced.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    /* Neutral ramp - cool slate, calm and professional */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary = the single accent color (overridden at runtime) */
+    --primary: 210 100% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 210 100% 40%;
+
+    --radius: 0.5rem;
+
+    /* The fallback until the bundled font has arrived. The element
+       carrying the next/font class overrides both of these. */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+    /* Sidebar / chrome dimensions */
+    --sidebar-width: 264px;
+    --topbar-height: 56px;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 44% 11%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 44% 11%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 210 100% 55%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 19%;
+    --accent-foreground: 210 40% 96%;
+
+    --destructive: 0 63% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217 33% 20%;
+    --input: 217 33% 20%;
+    --ring: 210 100% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    overscroll-behavior-y: none;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Universal custom scrollbars - elegant, floating pill design with zero white gutters */
+  html,
+  body,
+  *,
+  *::before,
+  *::after {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.28) transparent;
+  }
+
+  /* WebKit / Blink (Chrome, Edge, Brave, Safari, Opera) */
+  ::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  ::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+
+  ::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 9999px;
+    border: 1.5px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover,
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.48);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:active,
+  *::-webkit-scrollbar-thumb:active {
+    background-color: hsl(var(--primary) / 0.75);
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-corner,
+  *::-webkit-scrollbar-corner {
+    background: transparent !important;
+  }
+
+  /* Branded text selection */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.18);
+    color: inherit;
+  }
+
+  .dark ::selection {
+    background-color: hsl(var(--primary) / 0.28);
+    color: inherit;
+  }
+
+  /* Visible focus for keyboard users (WCAG 2.4.7) */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Scroll-spy "on this page" active state */
+  [data-scroll-active='true'] {
+    @apply text-primary border-l-primary;
+  }
+}
+
+@layer components {
+  /* Criteria chip - consistent across cards, results and the scenario header */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-2xs font-medium transition-all duration-150;
+  }
+
+  .chip-interactive {
+    @apply chip cursor-pointer hover:bg-accent hover:text-accent-foreground;
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .chip-interactive:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+  .chip-interactive:active {
+    transform: scale(0.97);
+  }
+
+  /* Upmarket Card Hover Elevation */
+  .card-hover {
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+  }
+  .dark .card-hover:hover {
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Tactile Button Feedback */
+  .btn-tactile {
+    transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .btn-tactile:hover {
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  }
+  .btn-tactile:active {
+    transform: scale(0.975);
+  }
+
+  /* Dense but readable surface for scenario content */
+  .prose-scenario {
+    @apply text-sm leading-relaxed text-foreground;
+  }
+  .prose-scenario h1 { @apply mb-3 mt-6 text-xl font-semibold tracking-tight; }
+  .prose-scenario h2 { @apply mb-2 mt-6 text-lg font-semibold tracking-tight; }
+  .prose-scenario h3 { @apply mb-2 mt-4 text-base font-semibold; }
+  .prose-scenario p { @apply mb-3; }
+  .prose-scenario ul { @apply mb-3 list-disc space-y-1 pl-5; }
+  .prose-scenario ol { @apply mb-3 list-decimal space-y-1 pl-5; }
+  .prose-scenario a { @apply text-primary underline underline-offset-2 hover:opacity-80; }
+  .prose-scenario code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-xs;
+  }
+  .prose-scenario pre {
+    @apply mb-3 overflow-x-auto rounded-md border bg-muted p-3;
+  }
+  .prose-scenario pre code { @apply bg-transparent p-0 text-xs; }
+  .prose-scenario img { @apply my-3 rounded-md border; }
+  .prose-scenario table { @apply mb-3 w-full border-collapse text-xs; }
+  .prose-scenario th { @apply border bg-muted px-2 py-1 text-left font-medium; }
+  .prose-scenario td { @apply border px-2 py-1; }
+  .prose-scenario blockquote {
+    @apply my-3 border-l-2 border-border pl-3 text-muted-foreground;
+  }
+
+  /* Code block with copy button affordance */
+  .code-block {
+    @apply relative overflow-x-auto rounded-md border bg-muted p-3 pr-12 font-mono text-xs leading-relaxed;
+  }
+}
+
+@layer utilities {
+  /* Scrollbar styling for dense panels */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.28) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent !important; }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.48);
+  }
+
+  /* Utility to hide scrollbar while preserving scroll functionality */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Skeleton loader - no layout shift */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-muted;
+  }
+
+  /* Upmarket Entrance & Micro-animations */
+  .animate-fade-in-up {
+    animation: bosFadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-fade-in {
+    animation: bosFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .animate-scale-in {
+    animation: bosScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Professional minimalist login loader animations */
+  .animate-bos-breathe {
+    animation: bosBreathe 2.6s ease-in-out infinite;
+  }
+
+  .animate-bos-beam {
+    animation: bosBeam 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  .animate-bos-fade-in {
+    animation: bosPureFadeIn 0.2s ease-out both;
+  }
+}
+
+@keyframes bosBreathe {
+  0%, 100% {
+    opacity: 0.88;
+    filter: drop-shadow(0 4px 16px rgba(35, 59, 116, 0.16));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 6px 24px rgba(40, 143, 194, 0.3));
+  }
+}
+
+@keyframes bosBeam {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+@keyframes bosPureFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bosFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bosFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bosScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================ */
+/* Print & PDF Export Styles: Clean Technical SOP Documentation Format         */
+/* ============================================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+
+  html,
+  body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    line-height: 1.45 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Strip UI background colors, shadows, and colored fills */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Completely remove interactive shell, toolbars, buttons, dialogs, toasts, icons */
+  header,
+  nav,
+  aside,
+  button,
+  input,
+  select,
+  textarea,
+  [role='button'],
+  [role='dialog'],
+  .toaster,
+  #sidebar,
+  .print\:hidden,
+  [data-print-hidden='true'],
+  svg.tabler-icon,
+  .tabler-icon {
+    display: none !important;
+  }
+
+  /* Expand content to full A4 page width */
+  main,
+  #main-content,
+  .min-h-screen {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  /* Page break rules for clean continuous flow */
+  section,
+  tr,
+  table,
+  img,
+  .avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Technical Document Headings */
+  h1 {
+    font-size: 16pt !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    line-height: 1.25 !important;
+    margin-bottom: 8pt !important;
+  }
+
+  h2 {
+    font-size: 11pt !important;
+    font-weight: 700 !important;
+    color: #000000 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-top: 14pt !important;
+    margin-bottom: 6pt !important;
+    border-bottom: 1.5px solid #000000 !important;
+    padding-bottom: 2pt !important;
+  }
+
+  /* Technical Code & Command blocks */
+  code,
+  pre {
+    font-family: 'Consolas', 'Courier New', Courier, monospace !important;
+    background-color: #f8fafc !important;
+    color: #000000 !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 0px !important;
+    padding: 3pt 6pt !important;
+    font-size: 9pt !important;
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+  }
+
+  /* Tables in documentation */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    border: 1px solid #71717a !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #a1a1aa !important;
+    padding: 3.5pt 6pt !important;
+    font-size: 9pt !important;
+    color: #000000 !important;
+  }
+
+  th {
+    font-weight: 700 !important;
+    background-color: #f4f4f5 !important;
+  }
+
+  /* Remove link URLs in print */
+  a[href]:after {
+    content: none !important;
+  }
+
+  /* Images / Figures */
+  img {
+    max-width: 100% !important;
+    max-height: 220px !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
+}

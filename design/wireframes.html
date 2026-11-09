@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Operations Playbook — Interactive Wireframes (Big Outsource)</title>
+  <style>
+    :root {
+      --brand-dark-blue: #233B74;
+      --brand-light-blue: #288FC2;
+      --brand-orange: #E07E3C;
+      --brand-purple: #794183;
+      
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --text-muted: #64748B;
+      --radius: 6px;
+      --mono: 'JetBrains Mono', monospace, Consolas, sans-serif;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      
+      --crit-border: #DC2626; --crit-bg: #FEF2F2; --crit-text: #991B1B;
+      --high-border: #EA580C; --high-bg: #FFF7ED; --high-text: #9A3412;
+      --med-border: #D97706;  --med-bg: #FFFBEB;  --med-text: #92400E;
+      --low-border: #4B5563;  --low-bg: #F3F4F6;  --low-text: #1F2937;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0B1220;
+      --surface: #111A2E;
+      --border: #233B74;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --crit-bg: #450A0A; --crit-text: #FCA5A5;
+      --high-bg: #431407; --high-text: #FDBA74;
+      --med-bg: #451A03;  --med-text: #FCD34D;
+      --low-bg: #1F2937;  --low-text: #E5E7EB;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--sans); }
+    body { background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+    /* Wireframe switcher banner */
+    .banner {
+      background: var(--brand-dark-blue);
+      color: #FFF;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .banner select {
+      background: #FFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--brand-dark-blue);
+      cursor: pointer;
+    }
+    .banner button {
+      background: var(--brand-light-blue);
+      color: #FFF;
+      border: none;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Screen Container */
+    .screen { display: none; padding: 24px; min-height: 90vh; }
+    .screen.active { display: block; }
+
+    /* App Shell Layout */
+    .shell {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: 56px 1fr;
+      min-height: calc(100vh - 50px);
+      background: var(--bg);
+    }
+    .topbar {
+      grid-column: 1 / -1;
+      background: var(--brand-dark-blue);
+      color: #FFF;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .topbar .logo { font-size: 16px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+    .topbar .logo span { color: var(--brand-orange); }
+    .topbar .account-switcher {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #FFF;
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .topbar .search-bar {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: var(--radius);
+      padding: 6px 14px;
+      color: #FFF;
+      width: 320px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .topbar .search-bar kbd {
+      background: rgba(255,255,255,0.2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--mono);
+    }
+
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nav-item {
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .nav-item:hover, .nav-item.active {
+      background: var(--bg);
+      color: var(--brand-light-blue);
+      border-left: 3px solid var(--brand-light-blue);
+    }
+    .nav-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 12px 12px 4px 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .main-content {
+      padding: 24px 32px;
+      overflow-y: auto;
+    }
+
+    /* Badges & Chips */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .chip.purple { background: rgba(121, 65, 131, 0.12); color: var(--brand-purple); border-color: rgba(121, 65, 131, 0.25); }
+    .chip.blue { background: rgba(40, 143, 194, 0.12); color: var(--brand-light-blue); border-color: rgba(40, 143, 194, 0.25); }
+
+    .badge-sev {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-sev.critical { background: var(--crit-bg); color: var(--crit-text); border: 1px solid var(--crit-border); }
+    .badge-sev.high     { background: var(--high-bg); color: var(--high-text); border: 1px solid var(--high-border); }
+    .badge-sev.medium   { background: var(--med-bg);  color: var(--med-text);  border: 1px solid var(--med-border); }
+    .badge-sev.low      { background: var(--low-bg);  color: var(--low-text);  border: 1px solid var(--low-border); }
+
+    .ticket-id {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(35, 59, 116, 0.08);
+      color: var(--brand-dark-blue);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    /* Quick Fix Box */
+    .quick-fix-box {
+      border-left: 4px solid var(--brand-orange);
+      background: rgba(224, 126, 60, 0.08);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+    .quick-fix-box h3 {
+      color: var(--brand-orange);
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--brand-dark-blue);
+      margin-bottom: 8px;
+    }
+    [data-theme="dark"] .card-title { color: #93C5FD; }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--brand-dark-blue); color: #FFF; }
+    .btn-primary:hover { background: #1a2c56; }
+    .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+    .btn-orange { background: var(--brand-orange); color: #FFF; }
+
+    /* Form Fields */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+    .form-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    /* Grid utilities */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Controller Banner -->
+  <div class="banner">
+    <div>
+      <strong>Big Outsource — IT Operations Playbook</strong>
+      <span style="opacity: 0.8; font-size: 12px; margin-left: 10px;">Wireframes &amp; Design System Preview</span>
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <label style="font-size: 12px;">Switch Screen:</label>
+      <select id="screenSelect" onchange="showScreen(this.value)">
+        <option value="scenario-page">1. Scenario View (Quick Fix &amp; Full Mode)</option>
+        <option value="login-mfa">2. Login &amp; MFA Enrollment</option>
+        <option value="home-dashboard">3. Home Dashboard</option>
+        <option value="account-page">4. Account Page (26 Client Accounts)</option>
+        <option value="category-page">5. Category Page with Hierarchical Filters</option>
+        <option value="search-results">6. Search Results &amp; Preview Drawer</option>
+        <option value="editor-classification">7. Scenario Editor (Classification Step)</option>
+        <option value="manage-screens">8. Manage Screens (Admin vs. IT Support)</option>
+      </select>
+      <button onclick="toggleTheme()">Toggle Dark / Light</button>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 1: SCENARIO VIEW ==================== -->
+  <div id="scenario-page" class="screen active">
+    <div class="shell">
+      <!-- Header -->
+      <header class="topbar">
+        <div class="logo">Big Outsource <span>IT Playbook</span></div>
+        <div class="account-switcher">🏢 Account: <strong>Health Carousel</strong> (1 of 26) ▾</div>
+        <div class="search-bar"><span>Search fixes, tickets, errors...</span> <kbd>Ctrl+K</kbd></div>
+        <div style="font-size: 12px; font-weight: 600;">Alex Admin (Admin)</div>
+      </header>
+
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="nav-item">🏠 Home</div>
+        <div class="nav-header">Browse</div>
+        <div class="nav-item active">🏢 Accounts (26)</div>
+        <div class="nav-item">📁 Category Tree</div>
+        <div class="nav-item">⭐ Favorites</div>
+        <div class="nav-item">🕒 Recently Viewed</div>
+        <div class="nav-item">📝 My Drafts</div>
+        <div class="nav-header">Administration</div>
+        <div class="nav-item">⚙️ Manage Data</div>
+        <div class="nav-item" style="color: var(--brand-purple);">👥 Users (Admin Only)</div>
+      </aside>
+
+      <!-- Main Scenario Content -->
+      <main class="main-content">
+        <!-- Breadcrumb & Mode Switcher -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div style="font-size: 12px; color: var(--text-muted);">
+            Accounts / Health Carousel / Network / Wi-Fi &amp; VPN
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" onclick="toggleQuickFixMode()">
+              ⚡ <span id="modeLabel">Switch to Quick Fix Mode</span>
+            </button>
+            <button class="btn btn-secondary">📋 Copy for Hesk Ticket (Alt+C)</button>
+            <button class="btn btn-primary">⭐ Favorite</button>
+          </div>
+        </div>
+
+        <!-- Scenario Header -->
+        <h1 style="font-size: 22px; font-weight: 700; color: var(--brand-dark-blue); margin-bottom: 12px;">
+          GlobalProtect VPN Authentication Timeout on Remote Workstations
+        </h1>
+
+        <!-- Metadata Chips Bar -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;">
+          <span class="badge-sev high">Severity: High</span>
+          <span class="chip blue">Frequent / Known Problem</span>
+          <span class="chip purple">Impact: Site / Remote Wide</span>
+          <span class="chip">Account: Health Carousel</span>
+          <span class="chip">Occurrence Count: 24 tickets</span>
+          <span class="chip">Last Occurred: Oct 26, 2026</span>
+        </div>
+
+        <!-- Quick Fix Callout Box -->
+        <div class="quick-fix-box">
+          <h3>⚡ Quick Fix (Immediate Resolution)</h3>
+          <p style="font-weight: 500; margin-bottom: 8px;">
+            Kill the cached PanGPS service and flush DNS resolution on the agent's PC:
+          </p>
+          <pre style="background: var(--surface); padding: 8px 12px; border-radius: 4px; font-family: var(--mono); font-size: 12px; border: 1px solid var(--border);">net stop PanGPS && ipconfig /flushdns && net start PanGPS</pre>
+        </div>
+
+        <!-- Full Mode Details (Toggled) -->
+        <div id="fullModeDetails">
+          <!-- Flowchart Placeholder -->
+          <div class="card">
+            <div class="card-title">Troubleshooting Flowchart</div>
+            <div style="background: var(--bg); border: 2px dashed var(--border); border-radius: var(--radius); padding: 32px; text-align: center;">
+              <span class="chip blue" style="padding: 6px 14px;">Start: User reports VPN Connection Failed</span>
+              <span style="margin: 0 10px;">➔</span>
+              <span class="chip purple" style="padding: 6px 14px;">Decision: Can user ping 8.8.8.8?</span>
+              <span style="margin: 0 10px;">➔</span>
+              <span class="badge-sev medium" style="padding: 6px 14px;">Action: Restart Gateway</span>
+            </div>
+          </div>
+
+          <!-- Sample Hesk Tickets (Track ID Only) -->
+          <div class="card">
+            <div class="card-title">Sample Tickets (Hesk Tracking ID Evidence)</div>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+              Only the tracking ID is linked; click to open the original ticket in Hesk.
+            </p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--text-muted);">
+                  <th style="padding: 8px;">Hesk Tracking ID</th>
+                  <th style="padding: 8px;">Reported Date</th>
+                  <th style="padding: 8px;">Reported Problem</th>
+                  <th style="padding: 8px;">Outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 8px;"><a href="#" class="ticket-id">BOS-49281</a></td>
+                  <td style="padding: 8px;">2026-10-24</td>
+                  <td style="padding: 8px;">Agent unable to connect to EMR portal</td>
+                  <td style="padding: 8px;"><span class="chip blue">Resolved via Quick Fix</span></td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px;"><a href="#" class="ticket-id">HC-10934</a></td>
+                  <td style="padding: 8px;">2026-10-22</td>
+                  <td style="padding: 8px;">Gateway handshake loop after Windows update</td>
+                  <td style="padding: 8px;"><span class="chip blue">Resolved</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Step-by-Step Resolutions -->
+          <div class="card">
+            <div class="card-title">Numbered Resolution Steps</div>
+            <ol style="padding-left: 20px; line-height: 1.8;">
+              <li>Verify workstation has active internet access by pinging default gateway.</li>
+              <li>Open Windows Services (`services.msc`) and locate <strong>Palo Alto Networks GlobalProtect</strong>.</li>
+              <li>Restart the service and confirm status transitions to Running.</li>
+              <li>Have user re-enter MFA token code in the authenticator prompt.</li>
+            </ol>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 2: LOGIN & MFA ==================== -->
+  <div id="login-mfa" class="screen">
+    <div style="max-width: 400px; margin: 40px auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 20px; font-weight: 700; color: var(--brand-dark-blue);">Big Outsource</div>
+        <div style="font-size: 13px; color: var(--brand-light-blue); font-weight: 600;">IT Operations Playbook</div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 6px;">Sign-in requires Authenticator-app MFA</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Company Email</label>
+        <input type="email" class="form-input" value="aldrin.brucal@bigoutsource.com" disabled>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" value="••••••••••••••••" disabled>
+      </div>
+
+      <!-- MFA Verification Box -->
+      <div style="background: var(--bg); border: 1px solid var(--brand-light-blue); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; text-align: center;">
+        <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">MFA Verification Code</div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Enter the 6-digit code from your authenticator app</p>
+        <input type="text" class="form-input" placeholder="000 000" style="text-align: center; font-size: 18px; letter-spacing: 4px; font-family: var(--mono); width: 180px; margin: 0 auto 12px auto;">
+        <button class="btn btn-primary" style="width: 100%; justify-content: center;">Verify Code &amp; Access Playbook</button>
+      </div>
+
+      <div style="text-align: center; font-size: 11px; color: var(--text-muted);">
+        Lost your authenticator? Contact an IT Playbook Admin for an MFA reset.
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 3: HOME DASHBOARD ==================== -->
+  <div id="home-dashboard" class="screen">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <h2 style="font-size: 22px; font-weight: 700; color: var(--brand-dark-blue); margin-bottom: 6px;">
+        Welcome to Big Outsource IT Operations Playbook
+      </h2>
+      <p style="color: var(--text-muted); margin-bottom: 24px;">Search-first internal operations knowledge base across 26 client accounts.</p>
+
+      <!-- Search Hero -->
+      <div class="card" style="border: 2px solid var(--brand-light-blue); padding: 16px;">
+        <input type="text" class="form-input" placeholder="Search problems, symptoms, errors, Hesk ticket IDs..." style="font-size: 15px; padding: 12px;">
+        <div style="display: flex; gap: 8px; margin-top: 10px; font-size: 12px; align-items: center;">
+          <span style="color: var(--text-muted);">Quick Categories:</span>
+          <span class="chip blue">Network &gt; VPN</span>
+          <span class="chip blue">Apps &gt; Teams</span>
+          <span class="chip blue">Hardware &gt; Headsets</span>
+          <span class="chip blue">Access &gt; Active Directory</span>
+        </div>
+      </div>
+
+      <!-- Quick Stats & Tiles -->
+      <div class="grid-3" style="margin-bottom: 24px;">
+        <div class="card">
+          <div style="font-size: 12px; color: var(--text-muted);">Active Accounts</div>
+          <div style="font-size: 24px; font-weight: 700; color: var(--brand-dark-blue);">26 Client Accounts</div>
+        </div>
+        <div class="card">
+          <div style="font-size: 12px; color: var(--text-muted);">Documented Scenarios</div>
+          <div style="font-size: 24px; font-weight: 700; color: var(--brand-orange);">16 Scenarios</div>
+        </div>
+        <div class="card">
+          <div style="font-size: 12px; color: var(--text-muted);">Total Incident Tickets</div>
+          <div style="font-size: 24px; font-weight: 700; color: var(--brand-purple);">34 Hesk Tickets</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SCREEN 4: ACCOUNTS PAGE ==================== -->
+  <div id="account-page" class="screen">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div>
+          <h2 style="font-size: 22px; font-weight: 700; color: var(--brand-dark-blue);">Health Carousel</h2>
+          <p style="color: var(--text-muted); font-size: 13px;">Dedicated playbook view for Health Carousel operations</p>
+        </div>
+        <button class="btn btn-primary">+ New Scenario for Health Carousel</button>
+      </div>
+
+      <!-- Account Tabs -->
+      <div style="display: flex; gap: 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
+        <div style="font-weight: 600; padding: 8px 16px; border-bottom: 2px solid var(--brand-light-blue); color: var(--brand-light-blue);">Frequent Problems (Pinned)</div>
+        <div style="font-weight: 500; padding: 8px 16px; color: var(--text-muted);">Anticipated Problems</div>
+        <div style="font-weight: 500; padding: 8px 16px; color: var(--text-muted);">By Category</div>
+        <div style="font-weight: 500; padding: 8px 16px; color: var(--text-muted);">Recently Updated</div>
+      </div>
+
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <span class="badge-sev high" style="margin-bottom: 6px;">Severity: High</span>
+            <div class="card-title">Citrix VDI Session Frozen on Re-connection</div>
+            <p style="font-size: 13px; color: var(--text-muted);">Session state locks on disconnection during shift handovers.</p>
+          </div>
+          <button class="btn btn-secondary">📌 Pinned to Top</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Javascript Controller -->
+  <script>
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById(id);
+      if (target) target.classList.add('active');
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    }
+
+    let isQuickFixOnly = false;
+    function toggleQuickFixMode() {
+      isQuickFixOnly = !isQuickFixOnly;
+      const details = document.getElementById('fullModeDetails');
+      const label = document.getElementById('modeLabel');
+      if (isQuickFixOnly) {
+        details.style.display = 'none';
+        label.innerText = 'Switch to Full Mode';
+      } else {
+        details.style.display = 'block';
+        label.innerText = 'Switch to Quick Fix Mode';
+      }
+    }
+  </script>
+</body>
+</html>

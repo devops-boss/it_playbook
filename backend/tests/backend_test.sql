@@ -130,9 +130,9 @@ SELECT count(*) AS matched FROM search_scenarios(p_custom_filters => jsonb_build
 -- Run as a Super Admin (the function is SECURITY DEFINER and checks
 -- has_permission() against auth.uid(), so a superuser connection without a
 -- JWT claim would be rejected).
-INSERT INTO auth.users (id, email) VALUES ('33333333-3333-3333-3333-333333333333','admin@test.com');
+INSERT INTO auth.users (id, email) VALUES ('33333333-3333-3333-3333-333333333333','admin@test.com') ON CONFLICT (id) DO NOTHING;
 INSERT INTO pb_user_roles (user_id, role_id)
-SELECT '33333333-3333-3333-3333-333333333333', id FROM pb_roles WHERE name='Super Admin';
+SELECT '33333333-3333-3333-3333-333333333333', id FROM pb_roles WHERE name='Super Admin' ON CONFLICT DO NOTHING;
 DO $$
 DECLARE
   v_scenario UUID;
@@ -167,12 +167,12 @@ SELECT config_type, action, count(*) FROM pb_config_history GROUP BY config_type
 
 \echo ''
 \echo '############ 15. RLS ENFORCEMENT ############'
-INSERT INTO auth.users (id, email) VALUES ('22222222-2222-2222-2222-222222222222','agent@test.com');
+INSERT INTO auth.users (id, email) VALUES ('22222222-2222-2222-2222-222222222222','agent@test.com') ON CONFLICT (id) DO NOTHING;
 INSERT INTO pb_user_roles (user_id, role_id)
-SELECT '22222222-2222-2222-2222-222222222222', id FROM pb_roles WHERE name='IT Agent';
+SELECT '22222222-2222-2222-2222-222222222222', id FROM pb_roles WHERE name='IT Agent' ON CONFLICT DO NOTHING;
 INSERT INTO pb_user_accounts (user_id, account_id)
-SELECT '22222222-2222-2222-2222-222222222222', id FROM pb_accounts WHERE code='ALPHA';
-INSERT INTO pb_accounts (name, code) VALUES ('Beta Industries', 'BETA');
+SELECT '22222222-2222-2222-2222-222222222222', id FROM pb_accounts WHERE code='ALPHA' ON CONFLICT DO NOTHING;
+INSERT INTO pb_accounts (name, code) VALUES ('Beta Industries', 'BETA') ON CONFLICT DO NOTHING;
 INSERT INTO pb_scenarios (title,status,account_id,category_id,issue_type_id,severity_id,impact_scope_id)
 SELECT 'Beta Only Scenario','published',(SELECT id FROM pb_accounts WHERE code='BETA'),
   (SELECT id FROM pb_categories WHERE slug='internet-down'),

@@ -124,7 +124,8 @@ VALUES
   ('Hardware', 'hardware', NULL, 'cpu', '#64748b', 3),
   ('Access/Login', 'access-login', NULL, 'lock', '#ef4444', 4),
   ('Email & Calendar', 'email-calendar', NULL, 'mail', '#f59e0b', 5),
-  ('Performance', 'performance', NULL, 'gauge', '#10b981', 6);
+  ('Performance', 'performance', NULL, 'gauge', '#10b981', 6),
+  ('ACS', 'acs', NULL, 'door', '#0284c7', 7);
 
 -- Sub-categories under Network Troubleshooting
 INSERT INTO pb_categories (name, slug, parent_id, icon, color, sort_order)

@@ -1,169 +1,569 @@
-version: '3.8'
+name: bos-playbook
+
+# ============================================================================
+# BOS Playbook - the on-premises stack
+#
+# Everything runs on one server inside the company network. Only nginx
+# publishes a port to the LAN, on 443 and 80. The database, the API gateway
+# and the Supabase services are reachable only from inside the Docker
+# network, and the Studio administration interface is bound to the
+# loopback address of the server.
+#
+#   The browser  ->  nginx:443  ->  frontend:3000   (the application)
+#                                   kong:8000      (the API gateway)
+#                     ->  rest / auth / realtime / storage
+#                     ->  db
+#
+# The image versions are pinned. Nothing is pulled at run time, so the
+# stack can be installed on a machine with no route to the internet - see
+# docs/DEPLOYMENT.md.
+#
+# Before the first start:
+#
+#   ./scripts/generate-secrets.sh     write .env with fresh secrets
+#   ./scripts/make-certificates.sh    write the TLS certificate
+#   make up
+#   make migrate
+#   make seed                         optional: the demo content
+# ============================================================================
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-common: &common
+  restart: unless-stopped
+  logging: *default-logging
+  networks:
+    - bos-network
 
 services:
-  # Supabase stack (from official self-host setup, customized)
+  # ---------------------------------------------------------------------------
+  # The database
+  #
+  # The official Supabase Postgres image. It ships the auth schema, the
+  # storage schema and the roles the other services authenticate as. The
+  # init scripts mounted below are the ones Supabase uses for a self
+  # hosted install, so the image behaves exactly as it does upstream.
+  #
+  # The data directory is a named volume. Postgres is never reachable from
+  # the LAN: there is no `ports:` on this service.
+  # ---------------------------------------------------------------------------
   db:
-    image: supabase/postgres:15.4.0
+    image: supabase/postgres:15.19.0.006
     container_name: bos-db
+    <<: *common
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - db_config:/etc/postgresql-custom
+      # Supabase's own scripts, in the places the image expects them.
+      - ./docker/postgres/initdb/roles.sql:/docker-entrypoint-initdb.d/init-scripts/98-roles.sql:ro
+      - ./docker/postgres/initdb/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:ro
+      - ./docker/postgres/initdb/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:ro
+      # The BOS Playbook additions: the trigram extension in the schema the
+      # application functions expect, and the grants for the tables the
+      # migrations create later.
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init-scripts/97-bos-playbook.sql:ro
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_HOST: /var/run/postgresql
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-supabase_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required - run scripts/generate-secrets.sh}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGPORT: ${POSTGRES_PORT:-5432}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
-      interval: 10s
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "2.0"
+
+  # ---------------------------------------------------------------------------
+  # Authentication (GoTrue)
+  #
+  # There is no public sign up. GOTRUE_DISABLE_SIGNUP is set to true, and
+  # the accounts are created by an administrator in the application.
+  # ---------------------------------------------------------------------------
+  auth:
+    image: supabase/gotrue:v2.197.0
+    container_name: bos-auth
+    <<: *common
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: "true"
+
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_ISSUER: ${API_EXTERNAL_URL}
+
+      # The email provider is what handles a password sign-in, so it has to
+      # be on. There is no public sign up: GOTRUE_DISABLE_SIGNUP above stops
+      # anyone creating an account for themselves, and every account is
+      # created by an administrator.
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY:-/auth/v1/verify}
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE:-/auth/v1/verify}
+      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL:-admin@localhost}
+      GOTRUE_SMTP_HOST: ${SMTP_HOST:-}
+      GOTRUE_SMTP_PORT: ${SMTP_PORT:-587}
+      GOTRUE_SMTP_USER: ${SMTP_USER:-}
+      GOTRUE_SMTP_PASS: ${SMTP_PASS:-}
+      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-BOS Playbook}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      timeout: 5s
+      interval: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  # ---------------------------------------------------------------------------
+  # The database API (PostgREST)
+  #
+  # This is the service the browser talks to for data. It connects as the
+  # authenticator role and switches to the role in the user's token, so
+  # the row level policies in the database are what decide what a person
+  # can see.
+  # ---------------------------------------------------------------------------
+  rest:
+    image: postgrest/postgrest:v14.18
+    container_name: bos-rest
+    <<: *common
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_MAX_ROWS: ${PGRST_DB_MAX_ROWS:-1000}
+      PGRST_DB_EXTRA_SEARCH_PATH: ${PGRST_DB_EXTRA_SEARCH_PATH:-public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_ADMIN_SERVER_PORT: 3001
+      PGRST_ADMIN_SERVER_HOST: localhost
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    command: ["postgrest"]
+    healthcheck:
+      test: ["CMD", "postgrest", "--ready"]
+      interval: 5s
       timeout: 5s
       retries: 5
-    networks:
-      - bos-network
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
 
-  auth:
-    image: supabase/gotrue:2.110.0
-    container_name: bos-auth
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-      GOTRUE_API_HOST: auth
-      GOTRUE_API_PORT: 8000
-      GOTRUE_SITE_URL: http://localhost
-      GOTRUE_JWT_SECRET: ${JWT_SECRET:-supersecretjwtkeychangethis}
-      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
-      GOTRUE_MAILER_AUTOCONFIRM: "true"
-      GOTRUE_MAILER_URLPATHS_INVITATION: "/invitation"
-      GOTRUE_MAILER_URLPATHS_CONFIRMATION: "/confirmation"
-      GOTRUE_MAILER_URLPATHS_RECOVERY: "/recovery"
-      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: "/email_change"
-    networks:
-      - bos-network
-
-  rest:
-    image: supabase/postgrest:14.0.1
-    container_name: bos-rest
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      POSTGREST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-      POSTGREST_HOST: rest
-      POSTGREST_PORT: 3000
-      POSTGREST_PGRST_DB_URI: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-      POSTGREST_PGRST_DB_SCHEMA: public
-      POSTGREST_PGRST_DB_ANON_ROLE: anon
-      POSTGREST_PGRST_MAX_ROWS: 100
-      POSTGREST_PGRST_ENABLE_EXPLAIN: "false"
-    networks:
-      - bos-network
-
+  # ---------------------------------------------------------------------------
+  # Realtime
+  # ---------------------------------------------------------------------------
   realtime:
-    image: supabase/realtime:2.29.8
+    image: supabase/realtime:v2.143.3
     container_name: bos-realtime
+    <<: *common
     depends_on:
       db:
         condition: service_healthy
     environment:
-      REALEST_HOST: realtime
-      REALEST_PORT: 8000
-    networks:
-      - bos-network
+      PORT: 4000
+      DB_HOST: ${POSTGRES_HOST:-db}
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_USER: supabase_admin
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB:-postgres}
+      DB_AFTER_CONNECT_QUERY: "SET search_path TO _realtime"
+      DB_ENC_KEY: ${REALTIME_DB_ENC_KEY:-supabaserealtime}
+      API_JWT_SECRET: ${JWT_SECRET}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+      METRICS_JWT_SECRET: ${JWT_SECRET}
+      ERL_AFLAGS: -proto_dist inet_tcp
+      DNS_NODES: "''"
+      RLIMIT_NOFILE: "10000"
+      APP_NAME: realtime
+      SEED_SELF_HOST: "true"
+      RUN_JANITOR: "true"
+      DISABLE_HEALTHCHECK_LOGGING: "true"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -sSfL --head -o /dev/null -H \"Authorization: Bearer ${ANON_KEY}\" http://localhost:4000/api/tenants/realtime-dev/health",
+        ]
+      timeout: 5s
+      interval: 30s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "1.0"
 
+  # ---------------------------------------------------------------------------
+  # Storage
+  #
+  # Attachments and the images in the rich text. The bucket is private:
+  # an image is served through a signed URL that is valid for a short
+  # time, and the storage service checks the user's token before it
+  # hands one out.
+  # ---------------------------------------------------------------------------
   storage:
-    image: supabase/storage:2.36.1
+    image: supabase/storage-api:v1.81.0
     container_name: bos-storage
+    <<: *common
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      STORAGE_HOST: storage
-      STORAGE_PORT: 8001
-      STORAGE_DB_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-postgres}
-      STORAGE_BACKUP_BUCKET_NAME: backups
-      STORAGE_BACKUP_BUCKET_REGION: us-east-1
-      STORAGE_BACKUP_ACCESS_KEY_ID: minioadmin
-      STORAGE_BACKUP_SECRET_ACCESS_KEY: minioadmin
-      STORAGE_FILE_KEY_LIMIT: 524288000
-      STORAGE_BACKUP_ENABLED: "true"
-    networks:
-      - bos-network
-
-  imgproxy:
-    image: supabase/imgproxy:3.23.0
-    container_name: bos-imgproxy
-    depends_on:
-      storage:
+      rest:
+        condition: service_started
+      imgproxy:
         condition: service_started
     environment:
-      IMGPROXY_BIND: 0.0.0.0:8002
-      IMGPROXY_MAX_WORKERS: 4
-      IMGPROXY_LOG_LEVEL: info
-    networks:
-      - bos-network
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-postgres}
+      STORAGE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      REQUEST_ALLOW_X_FORWARDED_PATH: "true"
+      FILE_SIZE_LIMIT: ${UPLOAD_MAX_SIZE:-10485760}
+      STORAGE_BACKEND: file
+      GLOBAL_S3_BUCKET: ${GLOBAL_S3_BUCKET:-stub}
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: ${STORAGE_TENANT_ID:-stub}
+      REGION: ${REGION:-stub}
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://imgproxy:5001
+      S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID:-stub}
+      S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET:-stub}
+    volumes:
+      - storage_data:/var/lib/storage
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://storage:5000/status"]
+      timeout: 5s
+      interval: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
 
+  # ---------------------------------------------------------------------------
+  # Image transformation
+  #
+  # Resizes and re-encodes the pictures pasted into a scenario, so the
+  # browser downloads an image that fits the screen instead of the one
+  # that was taken on a phone.
+  # ---------------------------------------------------------------------------
+  imgproxy:
+    image: darthsim/imgproxy:v3.31.4
+    container_name: bos-imgproxy
+    <<: *common
+    volumes:
+      - storage_data:/var/lib/storage:ro
+    environment:
+      IMGPROXY_BIND: ":5001"
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_AUTO_WEBP: ${IMGPROXY_AUTO_WEBP:-true}
+      IMGPROXY_MAX_SRC_RESOLUTION: 16.8
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      timeout: 5s
+      interval: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  # ---------------------------------------------------------------------------
+  # The metadata service
+  #
+  # Studio reads the database through it. It is only reachable from
+  # inside the Docker network.
+  # ---------------------------------------------------------------------------
+  meta:
+    image: supabase/postgres-meta:v0.100.0
+    container_name: bos-meta
+    <<: *common
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: ${POSTGRES_HOST:-db}
+      PG_META_DB_PORT: ${POSTGRES_PORT:-5432}
+      PG_META_DB_NAME: ${POSTGRES_DB:-postgres}
+      PG_META_DB_USER: ${POSTGRES_USER:-supabase_admin}
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  # ---------------------------------------------------------------------------
+  # Studio
+  #
+  # The database administration interface. It is bound to the loopback
+  # address of the server, so it is not on the LAN. An administrator
+  # reaches it through a tunnel:
+  #
+  #   ssh -L 8000:127.0.0.1:8000 <server>
+  #
+  # and then opens http://127.0.0.1:8000 in a browser. Set STUDIO_BIND to
+  # the address of an administrator only subnet to publish it there
+  # instead.
+  # ---------------------------------------------------------------------------
+  studio:
+    image: supabase/studio:2026.10.12-sha-3699278
+    container_name: bos-studio
+    <<: *common
+    depends_on:
+      meta:
+        condition: service_started
+    ports:
+      - "${STUDIO_BIND:-127.0.0.1}:8000:3000"
+    environment:
+      HOSTNAME: "0.0.0.0"
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER_READ_WRITE: ${POSTGRES_USER:-supabase_admin}
+      PG_META_CRYPTO_KEY: ${PG_META_CRYPTO_KEY}
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public}
+      PGRST_DB_MAX_ROWS: ${PGRST_DB_MAX_ROWS:-1000}
+      PGRST_DB_EXTRA_SEARCH_PATH: ${PGRST_DB_EXTRA_SEARCH_PATH:-public}
+      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION:-BOS Playbook}
+      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT:-BOS Playbook}
+      SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      ENABLED_FEATURES_LOGS_ALL: "false"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})\"",
+        ]
+      timeout: 10s
+      interval: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+          cpus: "1.0"
+
+  # ---------------------------------------------------------------------------
+  # The API gateway
+  #
+  # Kong is the single door into the API. The routes are in
+  # docker/kong/kong.yml, which is declarative so that what runs on the
+  # server can be read and reviewed.
+  # ---------------------------------------------------------------------------
   kong:
     image: kong:3.6.1
     container_name: bos-kong
+    <<: *common
     depends_on:
-      db:
+      auth:
+        condition: service_healthy
+      rest:
+        condition: service_healthy
+      realtime:
+        condition: service_started
+      storage:
         condition: service_healthy
     environment:
-      KONG_DATABASE: postgres
-      KONG_PG_HOST: db
-      KONG_PG_USER: ${POSTGRES_USER:-postgres}
-      KONG_PG_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      KONG_PG_DATABASE: ${POSTGRES_DB:-postgres}
+      # The configuration is read from the file, not from the database.
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /etc/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_PLUGINS: bundled,key-auth,oidc,hmac-auth,jwt,acl,cors,oauth2,mtls-auth,request-termination,request-size-limit,rate-limiting,response-ratelimiting,request-transformer,response-transformer,request-logging,response-logging,deprecation,vault,proxy-cache,proxy-cache-advanced,proxy-cache-via-post
-    networks:
-      - bos-network
+      KONG_LOG_LEVEL: ${KONG_LOG_LEVEL:-notice}
+      KONG_PROXY_ACCESS_LOG_FORMAT: json
+      KONG_PLUGINS: bundled,key-auth,acl,cors,request-transformer,request-size-limiting,rate-limiting,response-ratelimiting
+      # The addresses Kong is allowed to believe the client address from.
+      # nginx sets X-Real-IP to the address of the machine the request
+      # really came from, and only the requests that arrive from the
+      # Docker network are allowed to say so. That is what makes the rate
+      # limit count per person: without it every request in the building
+      # would share the single address of the proxy.
+      KONG_TRUSTED_IPS: ${KONG_TRUSTED_IPS:-172.16.0.0/12,192.168.0.0/16,10.0.0.0/8}
+    volumes:
+      - ./docker/kong/kong.yml:/etc/kong/kong.yml:ro
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
 
-  # Frontend application
+  # ---------------------------------------------------------------------------
+  # The application
+  # ---------------------------------------------------------------------------
   frontend:
     build:
-      context: ../frontend
+      context: ./frontend
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-BOS Playbook}
+        NEXT_PUBLIC_APP_LOGO: ${NEXT_PUBLIC_APP_LOGO:-/logo.png}
+        NEXT_PUBLIC_ACCENT_COLOR: ${NEXT_PUBLIC_ACCENT_COLOR:-#2563eb}
+    image: bos-playbook-frontend:${FRONTEND_VERSION:-latest}
     container_name: bos-frontend
+    <<: *common
     depends_on:
-      - rest
-      - realtime
-      - storage
-      - auth
+      rest:
+        condition: service_healthy
+      realtime:
+        condition: service_started
+      storage:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
     environment:
-      NEXT_PUBLIC_SUPABASE_URL: http://kong:8000
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTcxNzI2NzgwMCwiZXhwIjoyMDkzMDI0MDAwfQ.31J4w3UjW2T1a8sY9dV4z3fX5gH6jK7lM9nO1pQ2rS3tU4vW5xY6z}
-    ports:
-      - "3000:3000"
-    networks:
-      - bos-network
-    restart: unless-stopped
+      # The service-role key is deliberately absent. The frontend only ever
+      # holds the anon key and the user's own session.
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-BOS Playbook}
+      NEXT_PUBLIC_APP_LOGO: ${NEXT_PUBLIC_APP_LOGO:-/logo.png}
+      NEXT_PUBLIC_ACCENT_COLOR: ${NEXT_PUBLIC_ACCENT_COLOR:-#2563eb}
+      APP_ENV: ${APP_ENV:-production}
+      NODE_ENV: production
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-itsupport@bigoutsource.net}
+      SMTP_PASS: ${SMTP_PASS:-ihfshjedhvlbseuc}
+      SMTP_SENDER_NAME: ${SMTP_SENDER_NAME:-IT Operations Playbook}
+      # The application container reaches the API over HTTPS, at the same
+      # address the browser uses, so it has to trust the same certificate
+      # authority. The certificate written by scripts/make-certificates.sh
+      # is mounted in and named here.
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/bos-playbook-ca.crt
+    volumes:
+      - ./docker/nginx/certs/ca.crt:/usr/local/share/ca-certificates/bos-playbook-ca.crt:ro
+    # No `ports:` here. nginx is the way in.
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "2.0"
 
-  # Reverse proxy (Nginx)
+  # ---------------------------------------------------------------------------
+  # The reverse proxy
+  #
+  # The only service that is reachable from the LAN. It serves the
+  # application and forwards the API paths to Kong, over HTTPS.
+  # ---------------------------------------------------------------------------
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: bos-nginx
+    <<: *common
     depends_on:
-      - frontend
-      - kong
+      frontend:
+        condition: service_healthy
+      kong:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./docker/nginx:/etc/nginx/conf.d
-      - ./docker/certs:/etc/nginx/certs:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+    # The application container talks to the API over the public address
+    # (https://<domain>/auth/v1/...), exactly as the browser does. Inside
+    # the Docker network that name has to resolve, so nginx carries it as
+    # a network alias. This is also what makes the stack work on a host
+    # whose DNS does not know the domain yet.
     networks:
-      - bos-network
-    restart: unless-stopped
+      bos-network:
+        aliases:
+          - ${DOMAIN:-playbook.local}
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.5"
 
 networks:
   bos-network:
     driver: bridge
+    name: bos-playbook-network
 
 volumes:
   db_data:
+    name: bos-playbook-db-data
+  db_config:
+    name: bos-playbook-db-config
+  storage_data:
+    name: bos-playbook-storage-data
