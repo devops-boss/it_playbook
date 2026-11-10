@@ -1,5 +1,5 @@
 /**
- * Database types for BOS Playbook.
+ * Database types for IT Operations Playbook.
  *
  * Mirrors the `pb_` schema defined in backend/migrations. The application
  * treats criteria definitions as DATA (see `CriteriaField`), so adding a

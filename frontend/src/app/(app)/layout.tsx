@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { AppShell } from '@/components/layout/app-shell';
 import { getAccessibleAccounts, getCurrentUser } from '@/lib/auth';
 import { getCategories, getCriteriaFields } from '@/lib/data/criteria';
+import { ensureDefaultAccountsAndCategories } from '@/lib/data/ensure-defaults';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +16,9 @@ export const dynamic = 'force-dynamic';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
+
+  // Guarantee accounts, EDR/ESET categories, and permissions exist
+  await ensureDefaultAccountsAndCategories();
 
   const [accounts, categories, criteriaFields] = await Promise.all([
     getAccessibleAccounts(user),

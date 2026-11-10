@@ -123,7 +123,7 @@ export async function getAccessibleAccounts(user: CurrentUser | null): Promise<A
   if (error) throw toUpstreamError(error);
 
   const accounts = (data ?? []) as Account[];
-  if (!user || user.isSuperAdmin) return accounts;
+  if (!user || user.isSuperAdmin || user.accountIds.length === 0) return accounts;
 
   // Super Admin sees everything; everyone else sees their assigned accounts
   // plus global accounts.

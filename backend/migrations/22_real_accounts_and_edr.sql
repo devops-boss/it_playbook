@@ -82,3 +82,4 @@ SET value = jsonb_set(value, '{app_name}', '"IT Operations Playbook"')
 WHERE key = 'general';
 
 COMMIT;
+
