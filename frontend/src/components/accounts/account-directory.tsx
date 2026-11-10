@@ -54,7 +54,7 @@ export function AccountDirectory({ accounts }: AccountDirectoryProps) {
             Client Accounts Directory
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Browse troubleshooting procedures, incident history, and coverage for all 26 Big Outsource client operations.
+            Browse troubleshooting procedures, incident history, and coverage across all client operations.
           </p>
         </div>
 

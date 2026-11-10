@@ -12,8 +12,8 @@ async function handleSignOut(request: NextRequest) {
     // Continue even if session is already expired
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://playbook.test.local';
-  const response = NextResponse.redirect(new URL('/login', baseUrl), {
+  const origin = request.nextUrl.origin || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000';
+  const response = NextResponse.redirect(new URL('/login', origin), {
     status: 302,
   });
 

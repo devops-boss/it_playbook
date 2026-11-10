@@ -2125,7 +2125,7 @@ function ReviewStep({
                 let display = '—';
                 if (field.key === 'account') {
                   if (state.is_global) {
-                    display = 'Global (All 26 Accounts)';
+                    display = 'Global (All Accounts)';
                   } else if (state.account_ids && state.account_ids.length > 0) {
                     const matched = accounts.filter((a) => state.account_ids.includes(a.id));
                     display = matched.map((a) => `${a.name} (${a.code})`).join(', ');

@@ -598,7 +598,7 @@ export function ClassificationStep({
                   <>
                     <IconGlobe className="h-3.5 w-3.5 text-[#288FC2] shrink-0" />
                     <span className="font-semibold text-[#288FC2] dark:text-[#56b0e8] truncate">
-                      All 26 Accounts (Global SOP)
+                      All Accounts (Global SOP)
                     </span>
                   </>
                 ) : selectedAccountIds.length > 0 ? (

@@ -60,7 +60,7 @@ export async function getAccountMetrics(
   return ((data ?? [])[0] as AccountMetrics) ?? null;
 }
 
-/** Get live metrics for all 26 accounts for the directory view. */
+/** Get live metrics for all accounts for the directory view. */
 export async function getAllAccountMetrics(): Promise<AccountMetrics[]> {
   const supabase = createClient();
   const { data, error } = await supabase.rpc('get_all_account_metrics');
