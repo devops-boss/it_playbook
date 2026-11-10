@@ -216,7 +216,6 @@ BEGIN
 
   FOR r IN SELECT id, email FROM auth.users WHERE lower(email) != ALL(v_allowed_emails) LOOP
     IF v_reinier_id IS NOT NULL THEN
-      UPDATE pb_tags SET created_by = v_reinier_id WHERE created_by = r.id;
       UPDATE pb_scenarios SET created_by = v_reinier_id WHERE created_by = r.id;
       UPDATE pb_scenarios SET updated_by = v_reinier_id WHERE updated_by = r.id;
       UPDATE pb_scenario_attachments SET uploaded_by = v_reinier_id WHERE uploaded_by = r.id;
