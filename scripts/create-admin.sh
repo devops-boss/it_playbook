@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 
 echo "==> Creating / verifying admin users in bos-db..."
 
-docker exec -i bos-db psql -U postgres -d postgres << 'EOF'
+docker exec -i bos-db psql -U supabase_admin -d postgres << 'EOF'
 CREATE OR REPLACE FUNCTION create_or_update_admin(p_email TEXT, p_name TEXT)
 RETURNS VOID AS $$
 DECLARE
