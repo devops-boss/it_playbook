@@ -149,7 +149,17 @@ $COMPOSE exec -T db psql \
     ALTER ROLE supabase_storage_admin BYPASSRLS;
     ALTER ROLE supabase_storage_admin SET search_path = storage, public;
 
-    -- Ensure Supabase Auth and PostgREST roles retain search_paths and clean tokens
+    -- Ensure Supabase Auth and PostgREST roles retain full access, search_paths and clean tokens
+    GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role, authenticator;
+    GRANT ALL ON SCHEMA auth TO supabase_auth_admin, postgres;
+    GRANT ALL ON ALL TABLES IN SCHEMA auth TO supabase_auth_admin, postgres;
+    GRANT ALL ON ALL SEQUENCES IN SCHEMA auth TO supabase_auth_admin, postgres;
+    GRANT ALL ON ALL ROUTINES IN SCHEMA auth TO supabase_auth_admin, postgres;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL ON TABLES TO supabase_auth_admin, postgres;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL ON SEQUENCES TO supabase_auth_admin, postgres;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT ALL ON ROUTINES TO supabase_auth_admin, postgres;
+
+    ALTER ROLE supabase_auth_admin BYPASSRLS;
     ALTER ROLE supabase_auth_admin SET search_path = auth, public;
     ALTER ROLE authenticator SET search_path = public, extensions;
     ALTER ROLE anon SET search_path = public, extensions;
@@ -198,6 +208,8 @@ SCENARIOS=$($COMPOSE exec -T db psql --username "${POSTGRES_USER:-postgres}" \
 log_event "SUCCESS" "Restore from $(basename "$ARCHIVE") successful: $ACCOUNTS accounts, $USERS users, $SCENARIOS scenarios"
 
 echo "=== restore complete ==="
+echo "-- refreshing API and Auth connections"
+$COMPOSE restart auth rest frontend || true
 echo "Restored Accounts:  $ACCOUNTS"
 echo "Restored Users:     $USERS"
 echo "Restored Scenarios: $SCENARIOS"
