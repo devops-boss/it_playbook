@@ -77,8 +77,8 @@ WHERE cf.key = 'platform'
 
 -- 5. Update pb_settings app_name to 'IT Operations Playbook'
 UPDATE pb_settings
-SET value = jsonb_set(value, '{app_name}', '"IT Operations Playbook"')
-WHERE key = 'general';
+SET settings = jsonb_set(settings, '{app_name}', '"IT Operations Playbook"')
+WHERE scope = 'global';
 
 COMMIT;
 

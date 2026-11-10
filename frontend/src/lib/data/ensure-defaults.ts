@@ -129,17 +129,17 @@ export async function ensureDefaultAccountsAndCategories() {
     // 4. Update general app_name to 'IT Operations Playbook'
     const { data: settingsRow } = await admin
       .from('pb_settings')
-      .select('value')
-      .eq('key', 'general')
+      .select('settings')
+      .eq('scope', 'global')
       .maybeSingle();
 
-    if (settingsRow?.value && settingsRow.value.app_name !== 'IT Operations Playbook') {
+    if (settingsRow?.settings && settingsRow.settings.app_name !== 'IT Operations Playbook') {
       await admin
         .from('pb_settings')
         .update({
-          value: { ...settingsRow.value, app_name: 'IT Operations Playbook' },
+          settings: { ...settingsRow.settings, app_name: 'IT Operations Playbook' },
         })
-        .eq('key', 'general');
+        .eq('scope', 'global');
     }
 
     // 5. Ensure all user profiles are mapped to all accounts in pb_user_accounts
