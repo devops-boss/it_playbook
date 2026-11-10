@@ -38,10 +38,12 @@ const jetbrains = localFont({
   fallback: ['ui-monospace', 'SFMono-Regular', 'monospace'],
 });
 
+const APP_NAME = 'IT Operations Playbook';
+
 export const metadata: Metadata = {
   title: {
-    default: process.env.NEXT_PUBLIC_APP_NAME || 'IT Operations Playbook',
-    template: `%s | ${process.env.NEXT_PUBLIC_APP_NAME || 'IT Operations Playbook'}`,
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
   },
   description: 'Searchable IT incident playbook and knowledge base for Big Outsource',
   robots: { index: false, follow: false },

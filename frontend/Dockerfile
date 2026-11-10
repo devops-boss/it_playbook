@@ -26,7 +26,7 @@ COPY . .
 # (the anon key is safe to expose; the service-role key never is).
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ARG NEXT_PUBLIC_APP_NAME=BOS\ Playbook
+ARG NEXT_PUBLIC_APP_NAME=IT\ Operations\ Playbook
 ARG NEXT_PUBLIC_APP_LOGO=/logo.png
 ARG NEXT_PUBLIC_ACCENT_COLOR=#0066CC
 

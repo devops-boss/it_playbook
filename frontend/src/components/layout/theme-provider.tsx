@@ -31,6 +31,32 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(preferred);
   }, []);
 
+  // Ensure document title always reflects "IT Operations Playbook" in the browser tab
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const enforcePlaybookTitle = () => {
+      const current = document.title;
+      if (!current || current === 'BOS Playbook') {
+        document.title = 'IT Operations Playbook';
+      } else if (current.includes('BOS Playbook')) {
+        document.title = current.replace(/BOS Playbook/g, 'IT Operations Playbook');
+      }
+    };
+
+    enforcePlaybookTitle();
+
+    const titleEl = document.querySelector('title');
+    if (!titleEl) return;
+
+    const observer = new MutationObserver(() => {
+      enforcePlaybookTitle();
+    });
+
+    observer.observe(titleEl, { childList: true, characterData: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
   React.useEffect(() => {
     const root = document.documentElement;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
