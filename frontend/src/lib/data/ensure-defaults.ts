@@ -1,32 +1,32 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 const BIG_OUTSOURCE_ACCOUNTS = [
-  { name: 'Health Carousel', code: 'HC', accent_color: '#233B74', description: 'Healthcare staffing and workforce solutions', status: 'Active', is_global: false, is_active: true },
-  { name: 'MyVRhost', code: 'MVRH', accent_color: '#288FC2', description: 'Short-term vacation rental property management', status: 'Active', is_global: false, is_active: true },
-  { name: 'Imagine Learning', code: 'IL', accent_color: '#794183', description: 'Digital-first educational curriculum platform', status: 'Active', is_global: false, is_active: true },
-  { name: 'Harper Group', code: 'HG', accent_color: '#E07E3C', description: 'Publishing and lifestyle brand distribution', status: 'Active', is_global: false, is_active: true },
-  { name: 'Clearabee', code: 'CB', accent_color: '#233B74', description: 'On-demand rubbish clearance and recycling services', status: 'Active', is_global: false, is_active: true },
-  { name: 'DoNotPay', code: 'DNP', accent_color: '#288FC2', description: 'Consumer rights automation and legal tech', status: 'Active', is_global: false, is_active: true },
-  { name: 'Feed', code: 'FEED', accent_color: '#794183', description: 'E-commerce advertising and marketplace automation', status: 'Active', is_global: false, is_active: true },
-  { name: 'CelebVM', code: 'CVM', accent_color: '#E07E3C', description: 'Celebrity video messaging and fan platform', status: 'Active', is_global: false, is_active: true },
-  { name: 'Priceline RevOps', code: 'PLRO', accent_color: '#233B74', description: 'Travel booking revenue operations and inventory', status: 'Active', is_global: false, is_active: true },
-  { name: 'Miratech', code: 'MIRA', accent_color: '#288FC2', description: 'Global IT services and cloud consulting', status: 'Active', is_global: false, is_active: true },
-  { name: 'US Legal Support', code: 'USLS', accent_color: '#794183', description: 'Litigation support and record retrieval services', status: 'Active', is_global: false, is_active: true },
-  { name: 'Driveline Baseball', code: 'DLB', accent_color: '#E07E3C', description: 'Data-driven baseball performance training', status: 'Active', is_global: false, is_active: true },
-  { name: 'Cohley', code: 'CHLY', accent_color: '#233B74', description: 'Digital asset and user-generated content generation', status: 'Active', is_global: false, is_active: true },
-  { name: 'Fat Pizza', code: 'FPZ', accent_color: '#288FC2', description: 'Quick service restaurant ordering and logistics', status: 'Active', is_global: false, is_active: true },
-  { name: 'Under the Doormat', code: 'UTD', accent_color: '#794183', description: 'Luxury urban short-stay property management', status: 'Active', is_global: false, is_active: true },
-  { name: 'Medex', code: 'MDX', accent_color: '#E07E3C', description: 'Emergency medical supply distribution', status: 'Active', is_global: false, is_active: true },
-  { name: 'Lem Garcia Law', code: 'LGL', accent_color: '#233B74', description: 'Personal injury and civil legal practice', status: 'Active', is_global: false, is_active: true },
-  { name: 'Freedom and Glory', code: 'FAG', accent_color: '#288FC2', description: 'Lifestyle apparel and brand operations', status: 'Active', is_global: false, is_active: true },
-  { name: 'InMotion', code: 'INM', accent_color: '#794183', description: 'Web hosting and managed infrastructure services', status: 'Active', is_global: false, is_active: true },
-  { name: 'Travers', code: 'TRV', accent_color: '#E07E3C', description: 'Industrial metalworking and supply distribution', status: 'Active', is_global: false, is_active: true },
-  { name: 'Essentials in Writing', code: 'EIW', accent_color: '#233B74', description: 'Homeschooling video curriculum and grading services', status: 'Active', is_global: false, is_active: true },
-  { name: 'Cipher Billing', code: 'CPHB', accent_color: '#288FC2', description: 'Medical billing and revenue cycle management', status: 'Active', is_global: false, is_active: true },
-  { name: 'IFA', code: 'IFA', accent_color: '#794183', description: 'Agricultural cooperative supply and agronomy services', status: 'Active', is_global: false, is_active: true },
-  { name: 'Skanwear', code: 'SKW', accent_color: '#E07E3C', description: 'Arc flash protection and specialist workwear', status: 'Active', is_global: false, is_active: true },
-  { name: 'MyCali PT', code: 'MCPT', accent_color: '#233B74', description: 'Outpatient physical therapy clinic network', status: 'Active', is_global: false, is_active: true },
-  { name: 'Kiddom', code: 'KDM', accent_color: '#288FC2', description: 'K-12 digital curriculum and assessment suite', status: 'Active', is_global: false, is_active: true }
+  { name: 'Health Carousel', code: 'HC', accent_color: '#233B74', description: 'Healthcare staffing and workforce solutions', status: 'Active', is_global: false },
+  { name: 'MyVRhost', code: 'MVRH', accent_color: '#288FC2', description: 'Short-term vacation rental property management', status: 'Active', is_global: false },
+  { name: 'Imagine Learning', code: 'IL', accent_color: '#794183', description: 'Digital-first educational curriculum platform', status: 'Active', is_global: false },
+  { name: 'Harper Group', code: 'HG', accent_color: '#E07E3C', description: 'Publishing and lifestyle brand distribution', status: 'Active', is_global: false },
+  { name: 'Clearabee', code: 'CB', accent_color: '#233B74', description: 'On-demand rubbish clearance and recycling services', status: 'Active', is_global: false },
+  { name: 'DoNotPay', code: 'DNP', accent_color: '#288FC2', description: 'Consumer rights automation and legal tech', status: 'Active', is_global: false },
+  { name: 'Feed', code: 'FEED', accent_color: '#794183', description: 'E-commerce advertising and marketplace automation', status: 'Active', is_global: false },
+  { name: 'CelebVM', code: 'CVM', accent_color: '#E07E3C', description: 'Celebrity video messaging and fan platform', status: 'Active', is_global: false },
+  { name: 'Priceline RevOps', code: 'PLRO', accent_color: '#233B74', description: 'Travel booking revenue operations and inventory', status: 'Active', is_global: false },
+  { name: 'Miratech', code: 'MIRA', accent_color: '#288FC2', description: 'Global IT services and cloud consulting', status: 'Active', is_global: false },
+  { name: 'US Legal Support', code: 'USLS', accent_color: '#794183', description: 'Litigation support and record retrieval services', status: 'Active', is_global: false },
+  { name: 'Driveline Baseball', code: 'DLB', accent_color: '#E07E3C', description: 'Data-driven baseball performance training', status: 'Active', is_global: false },
+  { name: 'Cohley', code: 'CHLY', accent_color: '#233B74', description: 'Digital asset and user-generated content generation', status: 'Active', is_global: false },
+  { name: 'Fat Pizza', code: 'FPZ', accent_color: '#288FC2', description: 'Quick service restaurant ordering and logistics', status: 'Active', is_global: false },
+  { name: 'Under the Doormat', code: 'UTD', accent_color: '#794183', description: 'Luxury urban short-stay property management', status: 'Active', is_global: false },
+  { name: 'Medex', code: 'MDX', accent_color: '#E07E3C', description: 'Emergency medical supply distribution', status: 'Active', is_global: false },
+  { name: 'Lem Garcia Law', code: 'LGL', accent_color: '#233B74', description: 'Personal injury and civil legal practice', status: 'Active', is_global: false },
+  { name: 'Freedom and Glory', code: 'FAG', accent_color: '#288FC2', description: 'Lifestyle apparel and brand operations', status: 'Active', is_global: false },
+  { name: 'InMotion', code: 'INM', accent_color: '#794183', description: 'Web hosting and managed infrastructure services', status: 'Active', is_global: false },
+  { name: 'Travers', code: 'TRV', accent_color: '#E07E3C', description: 'Industrial metalworking and supply distribution', status: 'Active', is_global: false },
+  { name: 'Essentials in Writing', code: 'EIW', accent_color: '#233B74', description: 'Homeschooling video curriculum and grading services', status: 'Active', is_global: false },
+  { name: 'Cipher Billing', code: 'CPHB', accent_color: '#288FC2', description: 'Medical billing and revenue cycle management', status: 'Active', is_global: false },
+  { name: 'IFA', code: 'IFA', accent_color: '#794183', description: 'Agricultural cooperative supply and agronomy services', status: 'Active', is_global: false },
+  { name: 'Skanwear', code: 'SKW', accent_color: '#E07E3C', description: 'Arc flash protection and specialist workwear', status: 'Active', is_global: false },
+  { name: 'MyCali PT', code: 'MCPT', accent_color: '#233B74', description: 'Outpatient physical therapy clinic network', status: 'Active', is_global: false },
+  { name: 'Kiddom', code: 'KDM', accent_color: '#288FC2', description: 'K-12 digital curriculum and assessment suite', status: 'Active', is_global: false }
 ];
 
 let hasBootstrapped = false;
@@ -163,3 +163,4 @@ export async function ensureDefaultAccountsAndCategories() {
     console.warn('Bootstrap defaults warning:', err);
   }
 }
+

@@ -50,11 +50,11 @@ BEGIN
   END IF;
 
   -- Resolve Accounts (ensure default accounts exist if running on clean db)
-  INSERT INTO pb_accounts (code, name, client_name, is_active)
+  INSERT INTO pb_accounts (code, name, description, status)
   VALUES 
-    ('HC', 'Health Carousel', 'Health Carousel LLC', true),
-    ('MVRH', 'Miami Valley Hospital', 'Premier Health Partners', true),
-    ('IL', 'Intelligent Locations', 'Intelligent Locations Inc.', true)
+    ('HC', 'Health Carousel', 'Healthcare staffing and workforce solutions', 'Active'),
+    ('MVRH', 'MyVRhost', 'Short-term vacation rental property management', 'Active'),
+    ('IL', 'Imagine Learning', 'Digital-first educational curriculum platform', 'Active')
   ON CONFLICT (code) DO NOTHING;
 
   SELECT id INTO v_hc_id FROM pb_accounts WHERE code = 'HC';
