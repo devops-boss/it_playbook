@@ -218,11 +218,25 @@ BEGIN
     IF v_reinier_id IS NOT NULL THEN
       UPDATE pb_scenarios SET created_by = v_reinier_id WHERE created_by = r.id;
       UPDATE pb_scenarios SET updated_by = v_reinier_id WHERE updated_by = r.id;
-      UPDATE pb_scenario_attachments SET uploaded_by = v_reinier_id WHERE uploaded_by = r.id;
-      UPDATE pb_scenario_history SET changed_by = v_reinier_id WHERE changed_by = r.id;
-      UPDATE pb_playbooks SET created_by = v_reinier_id WHERE created_by = r.id;
-      UPDATE pb_playbooks SET updated_by = v_reinier_id WHERE updated_by = r.id;
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pb_attachments') THEN
+        UPDATE pb_attachments SET uploaded_by = v_reinier_id WHERE uploaded_by = r.id;
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pb_scenario_history') THEN
+        UPDATE pb_scenario_history SET changed_by = v_reinier_id WHERE changed_by = r.id;
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pb_playbooks') THEN
+        UPDATE pb_playbooks SET created_by = v_reinier_id WHERE created_by = r.id;
+        UPDATE pb_playbooks SET updated_by = v_reinier_id WHERE updated_by = r.id;
+      END IF;
     END IF;
+
+    DELETE FROM pb_user_accounts WHERE user_id = r.id;
+    DELETE FROM pb_user_roles WHERE user_id = r.id;
+    DELETE FROM pb_user_profiles WHERE id = r.id;
+    DELETE FROM auth.identities WHERE user_id = r.id;
     DELETE FROM auth.users WHERE id = r.id;
   END LOOP;
 END $$;
