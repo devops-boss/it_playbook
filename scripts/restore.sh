@@ -141,7 +141,19 @@ $COMPOSE exec -T db psql \
     ALTER DEFAULT PRIVILEGES IN SCHEMA public
       GRANT ALL ON SEQUENCES TO anon, authenticated, service_role, authenticator;
 
-    -- Ensure Supabase Storage role retains full access and search_path
+    -- Ensure Supabase Storage role retains ownership, full access and search_path
+    ALTER SCHEMA storage OWNER TO supabase_storage_admin;
+    DO $$
+    DECLARE r RECORD;
+    BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'storage' LOOP
+        EXECUTE 'ALTER TABLE storage.' || quote_ident(r.tablename) || ' OWNER TO supabase_storage_admin';
+      END LOOP;
+      FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'storage' LOOP
+        EXECUTE 'ALTER SEQUENCE storage.' || quote_ident(r.sequence_name) || ' OWNER TO supabase_storage_admin';
+      END LOOP;
+    END $$;
+
     GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
     GRANT ALL ON SCHEMA storage TO supabase_storage_admin, postgres;
     GRANT ALL ON ALL TABLES IN SCHEMA storage TO supabase_storage_admin, postgres;
@@ -149,7 +161,19 @@ $COMPOSE exec -T db psql \
     ALTER ROLE supabase_storage_admin BYPASSRLS;
     ALTER ROLE supabase_storage_admin SET search_path = storage, public;
 
-    -- Ensure Supabase Auth and PostgREST roles retain full access, search_paths and clean tokens
+    -- Ensure Supabase Auth role retains ownership, full access, search_paths and clean tokens
+    ALTER SCHEMA auth OWNER TO supabase_auth_admin;
+    DO $$
+    DECLARE r RECORD;
+    BEGIN
+      FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'auth' LOOP
+        EXECUTE 'ALTER TABLE auth.' || quote_ident(r.tablename) || ' OWNER TO supabase_auth_admin';
+      END LOOP;
+      FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'auth' LOOP
+        EXECUTE 'ALTER SEQUENCE auth.' || quote_ident(r.sequence_name) || ' OWNER TO supabase_auth_admin';
+      END LOOP;
+    END $$;
+
     GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role, authenticator;
     GRANT ALL ON SCHEMA auth TO supabase_auth_admin, postgres;
     GRANT ALL ON ALL TABLES IN SCHEMA auth TO supabase_auth_admin, postgres;
