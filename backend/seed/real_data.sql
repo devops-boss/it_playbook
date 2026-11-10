@@ -91,7 +91,6 @@ ON CONFLICT (code) DO UPDATE SET
   status = 'Active';
 
 -- 4. Load the 8 Real Users into auth.users and pb_user_profiles
--- Initial password is set to standard setup credentials matching DEMO_USER_PASSWORD for initial MFA setup
 CREATE OR REPLACE FUNCTION temp_create_real_user(
   p_email TEXT,
   p_name TEXT,
@@ -99,10 +98,14 @@ CREATE OR REPLACE FUNCTION temp_create_real_user(
 ) RETURNS VOID AS $$
 DECLARE
   v_user_id UUID;
-  v_role_id UUID;
+  v_super_admin_id UUID;
+  v_agent_id UUID;
 BEGIN
+  SELECT id INTO v_super_admin_id FROM pb_roles WHERE name = 'Super Admin';
+  SELECT id INTO v_agent_id FROM pb_roles WHERE name = 'IT Agent';
+
   -- Check if user already exists
-  SELECT id INTO v_user_id FROM auth.users WHERE email = p_email;
+  SELECT id INTO v_user_id FROM auth.users WHERE lower(email) = lower(p_email);
 
   IF v_user_id IS NULL THEN
     v_user_id := gen_random_uuid();
@@ -125,7 +128,26 @@ BEGIN
       now(),
       '', '', '', '', '', '', ''
     );
+  ELSE
+    UPDATE auth.users
+    SET raw_user_meta_data = jsonb_build_object('display_name', p_name),
+        email_confirmed_at = COALESCE(email_confirmed_at, now())
+    WHERE id = v_user_id;
   END IF;
+
+  -- Ensure auth identity exists for email provider
+  INSERT INTO auth.identities (
+    id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+  ) VALUES (
+    gen_random_uuid(),
+    v_user_id::text,
+    v_user_id,
+    jsonb_build_object('sub', v_user_id::text, 'email', p_email),
+    'email',
+    now(),
+    now(),
+    now()
+  ) ON CONFLICT DO NOTHING;
 
   -- Create or update profile
   INSERT INTO pb_user_profiles (id, email, display_name, role, is_active)
@@ -136,15 +158,27 @@ BEGIN
     role = EXCLUDED.role,
     is_active = TRUE;
 
-  -- Map role in pb_user_roles
-  SELECT id INTO v_role_id FROM pb_roles WHERE name = p_role;
-  IF v_role_id IS NOT NULL THEN
-    INSERT INTO pb_user_roles (user_id, role_id)
-    VALUES (v_user_id, v_role_id)
-    ON CONFLICT (user_id, role_id) DO NOTHING;
+  -- Map role in pb_user_roles: Super Admin for Admin, IT Agent for IT Support
+  IF p_role = 'Admin' THEN
+    IF v_super_admin_id IS NOT NULL THEN
+      INSERT INTO pb_user_roles (user_id, role_id)
+      VALUES (v_user_id, v_super_admin_id)
+      ON CONFLICT (user_id, role_id) DO NOTHING;
+    END IF;
+  ELSE
+    -- Remove Super Admin role if present
+    IF v_super_admin_id IS NOT NULL THEN
+      DELETE FROM pb_user_roles WHERE user_id = v_user_id AND role_id = v_super_admin_id;
+    END IF;
+    -- Assign IT Agent
+    IF v_agent_id IS NOT NULL THEN
+      INSERT INTO pb_user_roles (user_id, role_id)
+      VALUES (v_user_id, v_agent_id)
+      ON CONFLICT (user_id, role_id) DO NOTHING;
+    END IF;
   END IF;
 
-  -- Grant access to all 26 accounts
+  -- Grant access to all accounts
   INSERT INTO pb_user_accounts (user_id, account_id)
   SELECT v_user_id, a.id FROM pb_accounts a
   ON CONFLICT (user_id, account_id) DO NOTHING;
@@ -161,6 +195,38 @@ SELECT temp_create_real_user('frkatigbak@bigoutsource.ph',      'Francis Katigba
 SELECT temp_create_real_user('paulreinier.vista@bigoutsource.com', 'Reinier Vista', 'Admin');
 SELECT temp_create_real_user('lyaragoza@bigoutsource.ph',       'Lee An Aragoza',   'IT Support');
 SELECT temp_create_real_user('wfbibon@bigoutsource.ph',         'Wesley Bibon',     'IT Support');
+
+-- Clean up any extra users outside these 8
+DO $$
+DECLARE
+  v_reinier_id UUID;
+  v_allowed_emails TEXT[] := ARRAY[
+    'aldrin.brucal@bigoutsource.com',
+    'ronald.balza@bigoutsource.com',
+    'karla.espiritu@bigoutsource.com',
+    'paolo.pizana@bigoutsource.com',
+    'frkatigbak@bigoutsource.ph',
+    'paulreinier.vista@bigoutsource.com',
+    'lyaragoza@bigoutsource.ph',
+    'wfbibon@bigoutsource.ph'
+  ];
+  r RECORD;
+BEGIN
+  SELECT id INTO v_reinier_id FROM auth.users WHERE lower(email) = 'paulreinier.vista@bigoutsource.com';
+
+  FOR r IN SELECT id, email FROM auth.users WHERE lower(email) != ALL(v_allowed_emails) LOOP
+    IF v_reinier_id IS NOT NULL THEN
+      UPDATE pb_tags SET created_by = v_reinier_id WHERE created_by = r.id;
+      UPDATE pb_scenarios SET created_by = v_reinier_id WHERE created_by = r.id;
+      UPDATE pb_scenarios SET updated_by = v_reinier_id WHERE updated_by = r.id;
+      UPDATE pb_scenario_attachments SET uploaded_by = v_reinier_id WHERE uploaded_by = r.id;
+      UPDATE pb_scenario_history SET changed_by = v_reinier_id WHERE changed_by = r.id;
+      UPDATE pb_playbooks SET created_by = v_reinier_id WHERE created_by = r.id;
+      UPDATE pb_playbooks SET updated_by = v_reinier_id WHERE updated_by = r.id;
+    END IF;
+    DELETE FROM auth.users WHERE id = r.id;
+  END LOOP;
+END $$;
 
 DROP FUNCTION temp_create_real_user(TEXT, TEXT, TEXT);
 
