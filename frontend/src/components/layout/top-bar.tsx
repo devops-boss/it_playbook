@@ -137,7 +137,7 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
             <div className="border-b p-1.5">
               <input
                 type="text"
-                placeholder="Search 26 accounts..."
+                placeholder={accounts.length > 0 ? `Search ${accounts.length} accounts...` : 'Search accounts...'}
                 value={accountFilter}
                 onChange={(e) => setAccountFilter(e.target.value)}
                 className="w-full rounded border bg-transparent px-2 py-1 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"

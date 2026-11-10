@@ -65,7 +65,7 @@ export function AccountDirectory({ accounts }: AccountDirectoryProps) {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search 26 accounts..."
+              placeholder={accounts.length > 0 ? `Search ${accounts.length} accounts...` : 'Search accounts...'}
               className="h-9 pl-9 pr-7 text-xs font-medium"
             />
             {search && (

@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Client Accounts Directory | IT Operations Playbook',
-  description: 'Directory of all 26 client accounts with playbooks, metrics, and incident history.',
+  description: 'Directory of client accounts with playbooks, metrics, and incident history.',
 };
 
 export default async function AccountsIndexPage() {

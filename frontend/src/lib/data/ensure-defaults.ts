@@ -43,12 +43,12 @@ export async function ensureDefaultAccountsAndCategories() {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    // 1. Ensure all 26 accounts exist
+    // 1. Ensure initial accounts exist if table is empty
     const { count } = await admin
       .from('pb_accounts')
       .select('*', { count: 'exact', head: true });
 
-    if (!count || count < 26) {
+    if (!count || count === 0) {
       await admin.from('pb_accounts').upsert(BIG_OUTSOURCE_ACCOUNTS, {
         onConflict: 'code',
       });

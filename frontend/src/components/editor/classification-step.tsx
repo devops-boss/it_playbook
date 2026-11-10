@@ -719,7 +719,7 @@ export function ClassificationStep({
         {isGlobal ? (
           <div className="flex items-center gap-1.5 pt-0.5 text-2xs text-[#288FC2] font-medium">
             <IconGlobe className="h-3.5 w-3.5 shrink-0" />
-            <span>Universal: Available across all 26 accounts</span>
+            <span>Universal: Available across all client accounts</span>
           </div>
         ) : selectedAccountIds.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1 pt-0.5">
