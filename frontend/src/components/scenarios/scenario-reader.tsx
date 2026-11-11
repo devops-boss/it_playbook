@@ -661,15 +661,21 @@ export function ScenarioReader({
             </div>
           </div>
 
-          {/* Document Footer (Print Only) */}
-          <div className="hidden print:block mt-12 pt-4 border-t border-zinc-300 text-2xs text-zinc-600">
-            <div className="flex justify-between items-center">
-              <span>Big Outsource — IT Operations Playbook • Standard Operating Procedure</span>
-              <span>Document Ref: SOP-{scenario.slug}</span>
+          {/* Official Big Outsource Template Footer (Print Only) */}
+          <div className="hidden print:block mt-14 pt-4 border-t-2 border-[#233B74] text-center text-xs avoid-break">
+            <div className="text-sm font-bold tracking-wider text-[#288FC2] uppercase mb-1">
+              Built Around You.
             </div>
-            <p className="mt-1 text-[9px] text-zinc-500 text-center">
-              This document contains proprietary and confidential operating instructions. Unauthorized distribution or copying is prohibited.
-            </p>
+            <div className="text-[8.5pt] text-zinc-800 leading-relaxed">
+              Big Outsource Bldg., Block 4, Lot 1-4, Guevarra Subd., Brgy. Del Remedio, San Pablo City, Philippines 4000
+            </div>
+            <div className="text-[8.5pt] font-semibold text-[#288FC2] mt-1.5 flex items-center justify-center gap-3">
+              <span>+63 49 546 6399</span>
+              <span className="text-zinc-400">•</span>
+              <span>info@bigoutsource.com</span>
+              <span className="text-zinc-400">•</span>
+              <span>bigoutsource.com</span>
+            </div>
           </div>
         </div>
       </div>
