@@ -527,9 +527,9 @@ export function ScenarioReader({
           {/* ==================================================================== */}
           {/* PRINT-ONLY FORMAL DOCUMENTATION HEADER (A4 SOP Format)               */}
           {/* ==================================================================== */}
-          <div className="hidden print:block mb-6 pb-4 border-b-2 border-black">
+          <div className="hidden print:block mb-6 pb-4 border-b-2 border-[#233B74]">
             {/* Top Corporate Banner */}
-            <div className="flex items-center justify-between border-b border-black pb-3 mb-3">
+            <div className="flex items-center justify-between border-b border-[#233B74] pb-3 mb-3">
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -538,66 +538,66 @@ export function ScenarioReader({
                   className="h-9 w-auto object-contain"
                 />
                 <div>
-                  <div className="text-sm font-bold tracking-tight text-black">
+                  <div className="text-sm font-bold tracking-tight text-[#233B74]">
                     BIG OUTSOURCE
                   </div>
-                  <div className="text-[9pt] font-semibold uppercase tracking-wider text-zinc-700">
+                  <div className="text-[9pt] font-semibold uppercase tracking-wider text-black">
                     IT Operations Playbook • Standard Operating Procedure
                   </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xs font-mono font-bold text-black">
+                <div className="text-xs font-mono font-bold text-[#233B74]">
                   DOC REF: SOP-{scenario.slug.toUpperCase()}
                 </div>
-                <div className="text-[9pt] text-zinc-700">
+                <div className="text-[9pt] text-black">
                   Version: v{scenario.version} • Status: {scenario.status.toUpperCase()}
                 </div>
               </div>
             </div>
 
-            {/* Document Title */}
-            <h1 className="text-xl font-bold tracking-tight text-black mb-3">
+            {/* Document Title in Dark Blue #233B74 */}
+            <h1 className="text-xl font-bold tracking-tight text-[#233B74] mb-3">
               {scenario.title}
             </h1>
 
             {/* Formal Technical Document Metadata Table */}
-            <table className="w-full text-left text-xs border border-zinc-400 border-collapse mb-2">
+            <table className="w-full text-left text-xs border border-[#233B74] border-collapse mb-2">
               <tbody>
-                <tr className="border-b border-zinc-300">
-                  <td className="p-1.5 font-bold w-1/4 bg-zinc-100">Document Title:</td>
-                  <td className="p-1.5 w-1/4">{scenario.title}</td>
-                  <td className="p-1.5 font-bold w-1/4 bg-zinc-100">Document ID:</td>
-                  <td className="p-1.5 w-1/4 font-mono">SOP-{scenario.slug.toUpperCase()}</td>
+                <tr className="border-b border-slate-200">
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Document Title:</td>
+                  <td className="p-1.5 w-1/4 text-black">{scenario.title}</td>
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Document ID:</td>
+                  <td className="p-1.5 w-1/4 font-mono text-black">SOP-{scenario.slug.toUpperCase()}</td>
                 </tr>
-                <tr className="border-b border-zinc-300">
-                  <td className="p-1.5 font-bold bg-zinc-100">Author / Created By:</td>
-                  <td className="p-1.5">{authorName || 'IT Operations Team'}</td>
-                  <td className="p-1.5 font-bold bg-zinc-100">Date Created:</td>
-                  <td className="p-1.5">{formatDate(scenario.created_at)}</td>
+                <tr className="border-b border-slate-200">
+                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Author / Created By:</td>
+                  <td className="p-1.5 text-black">{authorName || 'IT Operations Team'}</td>
+                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Date Created:</td>
+                  <td className="p-1.5 text-black">{formatDate(scenario.created_at)}</td>
                 </tr>
-                <tr className="border-b border-zinc-300">
-                  <td className="p-1.5 font-bold bg-zinc-100">Category:</td>
-                  <td className="p-1.5">{categoryName || 'General IT Operations'}</td>
-                  <td className="p-1.5 font-bold bg-zinc-100">Last Revised:</td>
-                  <td className="p-1.5">{formatDate(scenario.updated_at)}</td>
+                <tr className="border-b border-slate-200">
+                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Category:</td>
+                  <td className="p-1.5 text-black">{categoryName || 'General IT Operations'}</td>
+                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Last Revised:</td>
+                  <td className="p-1.5 text-black">{formatDate(scenario.updated_at)}</td>
                 </tr>
-                <tr className="border-b border-zinc-300">
-                  <td className="p-1.5 font-bold bg-zinc-100">Scope / Target Account:</td>
-                  <td className="p-1.5">
+                <tr className="border-b border-slate-200">
+                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Scope / Target Account:</td>
+                  <td className="p-1.5 text-black">
                     {scenario.is_global
                       ? 'Global IT Operations'
                       : scenario.account_id && accountNames[scenario.account_id]
                       ? accountNames[scenario.account_id]
                       : 'Account Specific'}
                   </td>
-                  <td className="p-1.5 font-bold bg-zinc-100">Classification:</td>
-                  <td className="p-1.5">Internal IT SOP Documentation</td>
+                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Classification:</td>
+                  <td className="p-1.5 text-black">Internal IT SOP Documentation</td>
                 </tr>
                 {tickets.length > 0 && (
                   <tr>
-                    <td className="p-1.5 font-bold bg-zinc-100">Tracking Tickets:</td>
-                    <td colSpan={3} className="p-1.5 font-mono">
+                    <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Tracking Tickets:</td>
+                    <td colSpan={3} className="p-1.5 font-mono text-black">
                       {tickets.map((t) => t.ticket_id).join(', ')}
                     </td>
                   </tr>
@@ -836,7 +836,7 @@ function ScenarioSection({
   return (
     <section id={section.id} className="mb-8 scroll-mt-20">
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-sm font-bold tracking-tight uppercase text-muted-foreground flex items-center gap-1.5 print:text-black">
+        <h2 className="text-sm font-bold tracking-tight uppercase text-muted-foreground flex items-center gap-1.5 print:text-[#233B74] print:font-bold print:border-b-2 print:border-[#233B74] print:pb-1.5 print:mt-4 print:mb-2 print:text-base">
           {section.key === 'quick_fix' && <IconBolt className="h-4 w-4 text-[#E07E3C] print:hidden" />}
           {section.label}
         </h2>
@@ -853,13 +853,13 @@ function ScenarioSection({
         )}
       </div>
 
-      {/* QUICK FIX BOX: Prominent #E07E3C on screen, Clean minimal callout in print */}
+      {/* QUICK FIX BOX: Prominent #E07E3C on screen, Clean text callout in print without any side bars */}
       {section.key === 'quick_fix' ? (
-        <div className="rounded-xl border-2 border-[#E07E3C]/50 bg-[#E07E3C]/10 dark:bg-[#E07E3C]/15 p-4 shadow-sm space-y-3 print:border-l-4 print:border-t-0 print:border-r-0 print:border-b-0 print:border-black print:bg-transparent print:p-0 print:pl-3 print:rounded-none print:shadow-none">
+        <div className="rounded-xl border-2 border-[#E07E3C]/50 bg-[#E07E3C]/10 dark:bg-[#E07E3C]/15 p-4 shadow-sm space-y-3 print:border-none print:bg-transparent print:p-0 print:m-0 print:shadow-none">
           <RichText html={scenario.quick_fix} onImageClick={onImageClick} />
           {tickets.length > 0 && (
-            <div className="pt-2.5 border-t border-[#E07E3C]/20 flex flex-wrap items-center gap-2 print:border-t print:border-zinc-300 print:pt-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#E07E3C] print:text-black print:font-bold">
+            <div className="pt-2.5 border-t border-[#E07E3C]/20 flex flex-wrap items-center gap-2 print:border-t print:border-slate-200 print:pt-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#E07E3C] print:text-[#233B74] print:font-bold">
                 Reference Tickets:
               </span>
               <div className="flex flex-wrap gap-1.5 print:hidden">
@@ -884,16 +884,18 @@ function ScenarioSection({
         </div>
       ) : section.key === 'flowchart' ? (
         flowchart && flowchart.nodes.length > 0 ? (
-          <FlowchartViewer
-            nodes={flowchart.nodes}
-            edges={flowchart.edges}
-            nodeTypes={nodeTypes.map((t) => ({
-              key: t.key,
-              label: t.label,
-              color: t.color,
-              icon: t.icon,
-            }))}
-          />
+          <div className="print:hidden">
+            <FlowchartViewer
+              nodes={flowchart.nodes}
+              edges={flowchart.edges}
+              nodeTypes={nodeTypes.map((t) => ({
+                key: t.key,
+                label: t.label,
+                color: t.color,
+                icon: t.icon,
+              }))}
+            />
+          </div>
         ) : (
           /* Flowchart Placeholder Area - Hidden in print */
           <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-5 text-center print:hidden">
@@ -1138,7 +1140,7 @@ function CausesList({
     <div className="space-y-2 print:space-y-1">
       {causes.map((c, idx) => (
         <div key={idx} className="flex items-center justify-between rounded-lg border bg-card px-3.5 py-2.5 text-xs print:border-0 print:p-0 print:block">
-          <span className="font-medium text-foreground print:text-black">• {c.title}</span>
+          <span className="font-medium text-foreground print:text-[#233B74] print:font-bold">• {c.title}</span>
           {c.probability && (
             <>
               <Badge
@@ -1152,7 +1154,7 @@ function CausesList({
               >
                 {c.probability} Probability
               </Badge>
-              <span className="hidden print:inline text-xs text-zinc-600 ml-1.5 font-normal">
+              <span className="hidden print:inline text-xs text-black ml-1.5 font-normal">
                 ({c.probability} Probability)
               </span>
             </>
@@ -1189,7 +1191,7 @@ function WorkaroundsList({
     <div className="space-y-2.5 print:space-y-2">
       {workarounds.map((w, idx) => (
         <div key={idx} className="rounded-lg border bg-card p-3 text-xs print:border-0 print:p-0">
-          <div className="font-semibold text-foreground print:text-black">• {w.title}</div>
+          <div className="font-semibold text-foreground print:text-[#233B74] print:font-bold">• {w.title}</div>
           {w.details && <p className="mt-1 text-2xs text-muted-foreground print:text-black print:text-xs leading-relaxed print:pl-3">{w.details}</p>}
         </div>
       ))}
@@ -1235,7 +1237,7 @@ function ResolutionsList({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 print:space-y-2">
       {steps.map((s, idx) => {
         const stepNum = s.step ?? idx + 1;
         const isDone = completedSteps.has(stepNum);
@@ -1265,17 +1267,17 @@ function ResolutionsList({
 
               <div className="min-w-0 flex-1">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary print:text-xs print:font-bold print:text-black">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-primary print:text-[10.5pt] print:font-bold print:text-[#233B74]">
                     Step {stepNum}:{' '}
                   </span>
-                  <span className="text-xs leading-relaxed text-foreground print:text-black">
+                  <span className="text-xs leading-relaxed text-foreground print:text-[10pt] print:text-black">
                     {s.instruction}
                   </span>
                 </div>
 
                 {s.command && (
-                  <div className="mt-2.5 flex items-center justify-between rounded-lg bg-zinc-950 px-3 py-2 font-mono text-2xs text-zinc-200 print:mt-1 print:p-1.5 print:bg-zinc-50 print:text-black print:border print:border-zinc-400 print:rounded-none">
-                    <span className="truncate print:whitespace-pre-wrap print:break-all pr-2">{s.command}</span>
+                  <div className="mt-2.5 flex items-center justify-between rounded-lg bg-zinc-950 px-3 py-2 font-mono text-2xs text-zinc-200 print:mt-1.5 print:p-2 print:bg-slate-50 print:text-black print:border print:border-slate-300 print:rounded-none">
+                    <span className="truncate print:whitespace-pre-wrap print:break-all pr-2 font-mono text-[9pt]">{s.command}</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1289,17 +1291,17 @@ function ResolutionsList({
                 )}
 
                 {s.imageUrl && (
-                  <div className="mt-3 overflow-hidden rounded-lg border bg-muted/20 p-2 max-w-lg print:max-w-full print:border print:border-zinc-300 print:bg-white print:p-2 print:rounded-none print:break-inside-avoid">
+                  <div className="mt-3 overflow-hidden rounded-lg border bg-muted/20 p-2 max-w-lg print:hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={s.imageUrl}
                       alt={s.imageCaption || `Step ${stepNum} screenshot`}
-                      className="max-h-64 print:max-h-80 w-auto rounded object-contain cursor-zoom-in hover:opacity-90 transition-opacity bg-background print:rounded-none"
+                      className="max-h-64 w-auto rounded object-contain cursor-zoom-in hover:opacity-90 transition-opacity bg-background"
                       onClick={() => onImageClick(s.imageUrl!)}
                     />
                     {s.imageCaption && (
-                      <p className="mt-1.5 text-2xs font-medium text-muted-foreground print:text-zinc-700 print:text-[9pt] print:mt-1 flex items-center gap-1.5">
-                        <IconPhoto className="h-3 w-3 shrink-0 text-primary print:hidden" />
+                      <p className="mt-1.5 text-2xs font-medium text-muted-foreground flex items-center gap-1.5">
+                        <IconPhoto className="h-3 w-3 shrink-0 text-primary" />
                         <span>Figure: {s.imageCaption}</span>
                       </p>
                     )}
@@ -1332,7 +1334,7 @@ function EscalationList({
       <div className="grid gap-3 sm:grid-cols-2 print:block print:space-y-1">
         {esc.level_1 && (
           <div className="rounded-lg border bg-card p-3.5 text-xs print:border-0 print:p-0">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:text-black print:font-bold print:text-xs">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:text-[#233B74] print:font-bold print:text-xs">
               Tier 1 Support:
             </span>
             <span className="mt-1 text-foreground print:text-black print:text-xs ml-2">{esc.level_1}</span>
@@ -1340,7 +1342,7 @@ function EscalationList({
         )}
         {esc.level_2 && (
           <div className="rounded-lg border bg-card p-3.5 text-xs print:border-0 print:p-0">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:text-black print:font-bold print:text-xs">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground print:text-[#233B74] print:font-bold print:text-xs">
               Tier 2 / Escalation:
             </span>
             <span className="mt-1 text-foreground print:text-black print:text-xs ml-2">{esc.level_2}</span>

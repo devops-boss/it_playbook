@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&display=swap');
+
 /* ==========================================================================
    IT Operations Playbook - Global Styles
    Design tokens + locally bundled fonts. No external CDN at runtime.
@@ -401,21 +403,25 @@
     margin: 15mm 15mm 15mm 15mm;
   }
 
+  /* Universal reset for print */
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-left-width: 0 !important;
+  }
+
   html,
   body {
     background-color: #ffffff !important;
     background: #ffffff !important;
     color: #000000 !important;
+    font-family: 'Lexend Deca', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 10pt !important;
-    line-height: 1.45 !important;
+    line-height: 1.5 !important;
     overflow: visible !important;
     height: auto !important;
-  }
-
-  /* Strip UI background colors, shadows, and colored fills */
-  * {
-    box-shadow: none !important;
-    text-shadow: none !important;
   }
 
   /* Completely remove interactive shell, toolbars, buttons, dialogs, toasts, icons */
@@ -437,6 +443,19 @@
     display: none !important;
   }
 
+  /* Remove all card containers, colored side bars, red/orange bars, and background boxes */
+  div,
+  section,
+  article,
+  blockquote {
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+
   /* Expand content to full A4 page width */
   main,
   #main-content,
@@ -453,40 +472,105 @@
   section,
   tr,
   table,
-  img,
   .avoid-break {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
-  /* Technical Document Headings */
-  h1 {
-    font-size: 16pt !important;
-    font-weight: 700 !important;
+  /* Body text: Always black with Lexend Deca */
+  p,
+  span,
+  li,
+  td,
+  dd,
+  dt {
     color: #000000 !important;
+    font-family: 'Lexend Deca', sans-serif !important;
+  }
+
+  /* Document Titles and Headings: Dark Blue #233B74 */
+  h1, h2, h3, h4, h5, h6,
+  h1 *, h2 *, h3 *, h4 *, h5 *, h6 * {
+    color: #233B74 !important;
+    font-family: 'Lexend Deca', sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  h1 {
+    font-size: 18pt !important;
     line-height: 1.25 !important;
     margin-bottom: 8pt !important;
   }
 
   h2 {
-    font-size: 11pt !important;
-    font-weight: 700 !important;
-    color: #000000 !important;
+    font-size: 12pt !important;
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     margin-top: 14pt !important;
     margin-bottom: 6pt !important;
-    border-bottom: 1.5px solid #000000 !important;
+    border-bottom: 1.5px solid #233B74 !important;
     padding-bottom: 2pt !important;
   }
 
-  /* Technical Code & Command blocks */
+  h3 {
+    font-size: 11pt !important;
+    margin-top: 10pt !important;
+    margin-bottom: 4pt !important;
+  }
+
+  /* All bold elements and titles: Dark Blue #233B74 */
+  b,
+  strong,
+  th,
+  .font-bold,
+  .font-semibold,
+  b *,
+  strong *,
+  th *,
+  .font-bold *,
+  .font-semibold * {
+    color: #233B74 !important;
+    font-family: 'Lexend Deca', sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  /* RichText prose: Pure text SOP format */
+  .prose-scenario,
+  .prose-scenario * {
+    font-family: 'Lexend Deca', sans-serif !important;
+  }
+
+  .prose-scenario p,
+  .prose-scenario li,
+  .prose-scenario span {
+    color: #000000 !important;
+  }
+
+  .prose-scenario strong,
+  .prose-scenario b,
+  .prose-scenario h1,
+  .prose-scenario h2,
+  .prose-scenario h3 {
+    color: #233B74 !important;
+    font-weight: 700 !important;
+  }
+
+  .prose-scenario blockquote {
+    border-left: none !important;
+    border: none !important;
+    background: transparent !important;
+    padding-left: 0 !important;
+    color: #000000 !important;
+    font-style: italic !important;
+  }
+
+  /* Code & Command blocks: Crisp text format */
   code,
   pre {
     font-family: 'Consolas', 'Courier New', Courier, monospace !important;
     background-color: #f8fafc !important;
     color: #000000 !important;
-    border: 1px solid #94a3b8 !important;
+    border: 1px solid #cbd5e1 !important;
     border-radius: 0px !important;
     padding: 3pt 6pt !important;
     font-size: 9pt !important;
@@ -498,20 +582,24 @@
   table {
     border-collapse: collapse !important;
     width: 100% !important;
-    border: 1px solid #71717a !important;
+    border: 1px solid #233B74 !important;
   }
 
   th,
   td {
-    border: 1px solid #a1a1aa !important;
-    padding: 3.5pt 6pt !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 4pt 6pt !important;
     font-size: 9pt !important;
-    color: #000000 !important;
   }
 
   th {
+    color: #233B74 !important;
     font-weight: 700 !important;
-    background-color: #f4f4f5 !important;
+    background-color: #f1f5f9 !important;
+  }
+
+  td {
+    color: #000000 !important;
   }
 
   /* Remove link URLs in print */
@@ -519,10 +607,14 @@
     content: none !important;
   }
 
-  /* Images / Figures */
-  img {
-    max-width: 100% !important;
-    max-height: 220px !important;
+  /* Remove arbitrary screenshot images in print mode for text-based documentation */
+  img:not([alt*='Logo']):not([src*='logo']) {
+    display: none !important;
+  }
+
+  /* Logo remains visible in document header */
+  img[src*='logo'], img[alt*='Logo'] {
+    max-height: 40px !important;
     object-fit: contain !important;
     display: block !important;
   }
