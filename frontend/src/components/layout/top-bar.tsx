@@ -314,7 +314,12 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
                 } catch {
                   // Ignore if already signed out
                 }
-                window.location.href = '/api/auth/signout';
+                try {
+                  await fetch('/api/auth/signout', { method: 'POST' });
+                } catch {
+                  // Ignore
+                }
+                window.location.href = '/login';
               }}
             >
               Sign out

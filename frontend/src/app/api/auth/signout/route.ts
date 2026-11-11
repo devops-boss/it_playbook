@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 
+function getLoginRedirect(request: NextRequest): NextResponse {
+  // Respect reverse proxy forwarded host (e.g., domain or Tailscale IP)
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+
+  let location = '/login';
+  if (forwardedHost && !forwardedHost.includes('0.0.0.0')) {
+    location = `${forwardedProto}://${forwardedHost}/login`;
+  }
+
+  return new NextResponse(null, {
+    status: 302,
+    headers: {
+      Location: location,
+    },
+  });
+}
+
 async function handleSignOut(request: NextRequest) {
   const cookieStore = cookies();
   const supabase = createClient();
@@ -12,10 +30,7 @@ async function handleSignOut(request: NextRequest) {
     // Continue even if session is already expired
   }
 
-  const origin = request.nextUrl.origin || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:3000';
-  const response = NextResponse.redirect(new URL('/login', origin), {
-    status: 302,
-  });
+  const response = getLoginRedirect(request);
 
   const allCookies = cookieStore.getAll();
   for (const c of allCookies) {
