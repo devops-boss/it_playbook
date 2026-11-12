@@ -66,12 +66,50 @@ export function HomeDashboard({
 }: HomeDashboardProps) {
   const router = useRouter();
   const setQuery = useAppStore((s) => s.setQuery);
+  const selectedAccountIds = useAppStore((s) => s.selectedAccountIds);
+  const setSelectedAccountIds = useAppStore((s) => s.setSelectedAccountIds);
   const [term, setTerm] = React.useState('');
+
+  // Scoped scenarios when filtering by account from top bar
+  const [scopedRecent, setScopedRecent] = React.useState<SearchResult[]>(recent);
+  const [scopedFrequent, setScopedFrequent] = React.useState<SearchResult[]>(frequent);
+  const [loadingScope, setLoadingScope] = React.useState(false);
+
+  React.useEffect(() => {
+    if (selectedAccountIds.length === 0) {
+      setScopedRecent(recent);
+      setScopedFrequent(frequent);
+      return;
+    }
+
+    let active = true;
+    setLoadingScope(true);
+
+    Promise.all([
+      searchScenarios({ sort: 'newest', pageSize: 6, accountIds: selectedAccountIds }),
+      searchScenarios({ sort: 'frequency', pageSize: 6, accountIds: selectedAccountIds }),
+    ])
+      .then(([newestRes, freqRes]) => {
+        if (!active) return;
+        setScopedRecent(newestRes.results);
+        setScopedFrequent(freqRes.results);
+      })
+      .catch((err) => {
+        console.error('Failed to filter scenarios for selected accounts', err);
+      })
+      .finally(() => {
+        if (active) setLoadingScope(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedAccountIds, recent, frequent]);
 
   // Account organizer states
   const [accountSearch, setAccountSearch] = React.useState('');
   const [accountFilter, setAccountFilter] = React.useState<'all' | 'has_playbooks' | 'active'>('all');
-  const [accountSort, setAccountSort] = React.useState<'scenarios' | 'name' | 'code'>('scenarios');
+  const [accountSort, setAccountSort] = React.useState<'scenarios' | 'name' | 'code'>('name');
   const [showAllAccounts, setShowAllAccounts] = React.useState(false);
 
   const lookup = React.useMemo(
@@ -179,12 +217,11 @@ export function HomeDashboard({
 
         <form onSubmit={submitSearch} className="mt-5 flex max-w-2xl gap-2.5 items-center">
           <div className="relative flex-1">
-            <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder="Search symptoms, error messages, ticket IDs..."
-              className="h-10 pl-9.5 pr-8 rounded-lg bg-background"
+              className="h-10 px-3.5 pr-8 rounded-lg bg-background"
               aria-label="Search the playbook"
             />
             {term && (
@@ -200,12 +237,37 @@ export function HomeDashboard({
           </div>
           <Button
             type="submit"
-            className="h-10 px-5 rounded-lg bg-[#233B74] hover:bg-[#1b2e5c] text-white font-medium shadow-xs transition-all duration-150 active:scale-[0.98] shrink-0 gap-1.5"
+            className="h-10 px-5 rounded-lg bg-[#233B74] hover:bg-[#1b2e5c] text-white font-medium shadow-xs transition-all duration-150 active:scale-[0.98] shrink-0"
           >
-            <IconSearch className="h-4 w-4" />
-            <span>Search</span>
+            Search
           </Button>
         </form>
+
+        {selectedAccountIds.length > 0 && (
+          <div className="mt-3 flex max-w-2xl items-center justify-between gap-2 rounded-xl border border-primary/25 bg-primary/5 px-3.5 py-2 text-xs text-primary animate-fade-in">
+            <div className="flex items-center gap-2 min-w-0">
+              <IconFilter className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate">
+                Active account scope:{' '}
+                <strong className="font-semibold text-foreground">
+                  {accounts
+                    .filter((a) => selectedAccountIds.includes(a.id))
+                    .map((a) => a.name)
+                    .join(', ') || `${selectedAccountIds.length} accounts`}
+                </strong>
+                {' '}&mdash; showing tailored playbooks &amp; diagnostics.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedAccountIds([])}
+              className="inline-flex shrink-0 items-center gap-1 font-medium hover:underline cursor-pointer text-muted-foreground hover:text-foreground text-2xs"
+            >
+              <IconX className="h-3 w-3" />
+              <span>Show all</span>
+            </button>
+          </div>
+        )}
 
         <p className="mt-2 text-2xs text-muted-foreground">
           Press <kbd className="rounded border px-1 font-mono">Ctrl K</kbd> anywhere
@@ -309,8 +371,8 @@ export function HomeDashboard({
                 className="h-8 rounded-md border bg-background px-2 text-2xs text-muted-foreground font-medium focus:outline-none focus:ring-1 focus:ring-primary"
                 aria-label="Sort accounts by"
               >
-                <option value="scenarios">Most Playbooks</option>
                 <option value="name">Name (A–Z)</option>
+                <option value="scenarios">Most Playbooks</option>
                 <option value="code">Code (A–Z)</option>
               </select>
             </div>
@@ -340,11 +402,15 @@ export function HomeDashboard({
               <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {displayedAccounts.map((account) => {
                   const count = accountCounts[account.id] ?? 0;
+                  const isScoped = selectedAccountIds.includes(account.id);
                   return (
                     <Link
                       key={account.id}
                       href={`/accounts/${account.code}`}
-                      className="group flex items-center gap-3 rounded-xl border bg-card p-3 shadow-2xs card-hover hover:border-primary/50"
+                      className={cn(
+                        'group flex items-center gap-3 rounded-xl border bg-card p-3 shadow-2xs card-hover hover:border-primary/50',
+                        isScoped && 'border-primary/80 ring-1 ring-primary/30 bg-primary/[0.03]',
+                      )}
                     >
                       <span
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold font-mono tracking-tight shadow-2xs"
@@ -363,6 +429,11 @@ export function HomeDashboard({
                           {account.status !== 'Active' && (
                             <Badge variant="outline" className="h-4 px-1 text-[9px] uppercase">
                               {account.status}
+                            </Badge>
+                          )}
+                          {isScoped && (
+                            <Badge variant="default" className="h-4 px-1.5 text-[9px] font-semibold bg-primary text-primary-foreground">
+                              Scoped
                             </Badge>
                           )}
                         </span>
@@ -425,12 +496,14 @@ export function HomeDashboard({
             </Button>
           </div>
           <div className="space-y-2">
-            {frequent.length === 0 ? (
+            {scopedFrequent.length === 0 ? (
               <p className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-                No scenarios published yet.
+                {selectedAccountIds.length > 0
+                  ? 'No frequent playbooks found for the selected account(s).'
+                  : 'No scenarios published yet.'}
               </p>
             ) : (
-              frequent.map((result) => (
+              scopedFrequent.map((result) => (
                 <ScenarioCard
                   key={result.id}
                   id={result.id}
@@ -457,12 +530,14 @@ export function HomeDashboard({
               Recently updated
             </h2>
             <div className="space-y-2">
-              {recent.length === 0 ? (
+              {scopedRecent.length === 0 ? (
                 <p className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-                  Nothing has been updated yet.
+                  {selectedAccountIds.length > 0
+                    ? 'No recently updated playbooks for the selected account(s).'
+                    : 'Nothing has been updated yet.'}
                 </p>
               ) : (
-                recent.map((result) => (
+                scopedRecent.map((result) => (
                   <ScenarioCard
                     key={result.id}
                     id={result.id}

@@ -50,6 +50,11 @@ export function Sidebar({ accounts = [], categories, user }: SidebarProps) {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const [accountsOpen, setAccountsOpen] = React.useState(true);
 
+  const sortedAccounts = React.useMemo(
+    () => [...accounts].sort((a, b) => a.name.localeCompare(b.name)),
+    [accounts],
+  );
+
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
@@ -139,7 +144,7 @@ export function Sidebar({ accounts = [], categories, user }: SidebarProps) {
 
             {!collapsed && accountsOpen && (
               <ul className="max-h-48 overflow-y-auto space-y-0.5 pl-1 scrollbar-thin">
-                {accounts.map((account) => {
+                {sortedAccounts.map((account) => {
                   const isAcctActive = pathname === `/accounts/${account.code}`;
                   return (
                     <li key={account.id}>

@@ -64,12 +64,14 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
 
   const activeAccounts = accounts.filter((a) => selectedAccountIds.includes(a.id));
-  const filteredAccounts = accounts.filter(
-    (a) =>
-      !accountFilter.trim() ||
-      a.name.toLowerCase().includes(accountFilter.toLowerCase()) ||
-      a.code.toLowerCase().includes(accountFilter.toLowerCase()),
-  );
+  const filteredAccounts = accounts
+    .filter(
+      (a) =>
+        !accountFilter.trim() ||
+        a.name.toLowerCase().includes(accountFilter.toLowerCase()) ||
+        a.code.toLowerCase().includes(accountFilter.toLowerCase()),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';

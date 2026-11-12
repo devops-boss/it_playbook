@@ -144,7 +144,7 @@ export const useAppStore = create<AppState>()(
               break;
             case 'accountIds':
               filters.accountIds = [];
-              break;
+              return { filters, selectedAccountIds: [] };
             default:
               if (key.startsWith('custom:')) {
                 const fieldId = key.replace('custom:', '');
@@ -167,6 +167,14 @@ export const useAppStore = create<AppState>()(
         showArchived: state.showArchived,
         sidebarCollapsed: state.sidebarCollapsed,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (state && Array.isArray(state.selectedAccountIds)) {
+          state.filters.accountIds = state.selectedAccountIds;
+          if (state.accountMatch) {
+            state.filters.accountMatch = state.accountMatch;
+          }
+        }
+      },
     },
   ),
 );
