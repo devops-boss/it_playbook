@@ -15,6 +15,7 @@ import { useAppStore } from '@/lib/store/app-store';
 import { useTheme } from './theme-provider';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
