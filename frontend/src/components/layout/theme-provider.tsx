@@ -74,6 +74,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = React.useCallback((next: Theme) => {
     window.localStorage.setItem(STORAGE_KEY, next);
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      const resolved = next === 'system' ? (media.matches ? 'dark' : 'light') : next;
+      root.classList.toggle('dark', resolved === 'dark');
+      setResolvedTheme(resolved);
+    }
     setThemeState(next);
   }, []);
 

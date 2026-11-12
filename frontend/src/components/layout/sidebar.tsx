@@ -64,7 +64,7 @@ export function Sidebar({ accounts = [], categories, user }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'sticky top-14 z-30 flex h-[calc(100vh-3.5rem)] shrink-0 flex-col border-r bg-background transition-[width] duration-200 print:hidden',
+        'sticky top-14 z-30 flex h-[calc(100vh-3.5rem)] shrink-0 flex-col border-r bg-background transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] print:hidden',
         collapsed ? 'w-12' : 'w-[var(--sidebar-width)]',
       )}
       aria-label="Main navigation"

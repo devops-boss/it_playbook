@@ -76,6 +76,19 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
   const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
 
+    // Apply silky theme-transitioning helper class
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.add('theme-transitioning');
+    }
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        if (typeof document !== 'undefined') {
+          document.documentElement.classList.remove('theme-transitioning');
+        }
+      }, 550);
+    };
+
     // Support circular reveal animation via View Transitions API
     if (
       typeof document !== 'undefined' &&
@@ -91,38 +104,40 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
         Math.max(y, window.innerHeight - y),
       );
 
-      const transition = (
-        document as unknown as {
-          startViewTransition: (cb: () => void) => { ready: Promise<void> };
-        }
-      ).startViewTransition(() => {
-        flushSync(() => {
-          setTheme(nextTheme);
+      try {
+        const transition = (
+          document as unknown as {
+            startViewTransition: (cb: () => void) => { ready: Promise<void> };
+          }
+        ).startViewTransition(() => {
+          flushSync(() => {
+            setTheme(nextTheme);
+          });
         });
-      });
 
-      transition.ready.then(() => {
-        document.documentElement.animate(
-          {
-            clipPath: [
-              `circle(0px at ${x}px ${y}px)`,
-              `circle(${endRadius}px at ${x}px ${y}px)`,
-            ],
-          },
-          {
-            duration: 420,
-            easing: 'cubic-bezier(0.2, 0, 0, 1)',
-            pseudoElement: '::view-transition-new(root)',
-          },
-        );
-      });
+        transition.ready.then(() => {
+          const anim = document.documentElement.animate(
+            {
+              clipPath: [
+                `circle(0px at ${x}px ${y}px)`,
+                `circle(${endRadius}px at ${x}px ${y}px)`,
+              ],
+            },
+            {
+              duration: 520,
+              easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+              pseudoElement: '::view-transition-new(root)',
+            },
+          );
+          anim.onfinish = cleanup;
+        }).catch(cleanup);
+      } catch {
+        setTheme(nextTheme);
+        cleanup();
+      }
     } else {
-      // Smooth CSS transition fallback
-      document.documentElement.classList.add('theme-transitioning');
       setTheme(nextTheme);
-      window.setTimeout(() => {
-        document.documentElement.classList.remove('theme-transitioning');
-      }, 350);
+      cleanup();
     }
   };
 
@@ -300,17 +315,28 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground transition-all duration-200 active:scale-90"
+          className="relative h-8 w-8 text-muted-foreground hover:text-foreground transition-all duration-300 hover:bg-accent/80 active:scale-90 overflow-hidden"
           aria-label={
             theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'
           }
           onClick={toggleTheme}
         >
-          {theme === 'dark' ? (
-            <IconSun className="h-4 w-4 transition-transform duration-200 rotate-0 hover:rotate-45 text-amber-400" />
-          ) : (
-            <IconMoon className="h-4 w-4 transition-transform duration-200 rotate-0 hover:-rotate-12 text-[#233B74]" />
-          )}
+          <IconSun
+            className={cn(
+              'h-4 w-4 text-amber-400 absolute transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
+              theme === 'dark'
+                ? 'rotate-0 scale-100 opacity-100'
+                : '-rotate-90 scale-0 opacity-0',
+            )}
+          />
+          <IconMoon
+            className={cn(
+              'h-4 w-4 text-[#233B74] dark:text-blue-400 absolute transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]',
+              theme === 'dark'
+                ? 'rotate-90 scale-0 opacity-0'
+                : 'rotate-0 scale-100 opacity-100',
+            )}
+          />
         </Button>
 
         <DropdownMenu>

@@ -213,17 +213,20 @@
 
   /* Upmarket Card Hover Elevation */
   .card-hover {
-    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-                border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
-                background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                background-color 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .card-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
   }
   .dark .card-hover:hover {
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.25);
+  }
+  .card-hover:active {
+    transform: translateY(0) scale(0.99);
   }
 
   /* Tactile Button Feedback */
@@ -407,27 +410,36 @@
   z-index: 9999;
 }
 
-/* Fallback smooth transition for elements when toggling theme without View Transitions */
-.theme-transitioning,
-.theme-transitioning *,
-.theme-transitioning *::before,
-.theme-transitioning *::after {
-  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+/* Silky smooth theme transition across all surfaces */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+              color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              fill 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  transition-delay: 0s !important;
 }
 
-/* Smooth, subtle micro-transitions across interactive elements (not exaggerated) */
+/* Smooth, natural micro-transitions across interactive elements */
 button,
 a,
 [role='button'],
 input,
 select,
-textarea {
-  transition-property: color, background-color, border-color, box-shadow, opacity;
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  transition-duration: 150ms;
+textarea,
+.badge {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: 200ms;
+}
+
+/* Gentle tactile micro-feedback on press */
+button:active:not(:disabled),
+[role='button']:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 @media (prefers-reduced-motion: reduce) {
