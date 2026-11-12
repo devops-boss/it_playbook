@@ -12,6 +12,7 @@ import {
   IconPlus,
   IconSearch,
   IconSparkles,
+  IconX,
 } from '@tabler/icons-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { searchScenarios } from '@/lib/data/criteria-client';
@@ -105,7 +106,7 @@ export function CommandPalette({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gap-0 overflow-hidden p-0 sm:max-w-xl"
+        className="gap-0 overflow-hidden p-0 sm:max-w-xl sm:rounded-2xl rounded-2xl border shadow-2xl bg-card"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Command palette</DialogTitle>
@@ -118,16 +119,29 @@ export function CommandPalette({
           className="flex flex-col overflow-hidden"
           loop
         >
-          <div className="flex items-center gap-2 border-b px-3">
+          <div className="flex items-center gap-3 border-b px-4 py-3 bg-muted/20">
             <IconSearch className="h-4 w-4 shrink-0 text-muted-foreground" />
             <Command.Input
               value={term}
               onValueChange={setTerm}
               placeholder="Search scenarios, tickets, or jump to..."
-              className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-6 w-full bg-transparent text-sm placeholder:text-muted-foreground outline-none border-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
             />
-            {loading && (
-              <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+            {loading ? (
+              <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+            ) : term ? (
+              <button
+                type="button"
+                onClick={() => setTerm('')}
+                className="rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Clear input"
+              >
+                <IconX className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <kbd className="hidden sm:inline-flex items-center rounded border border-border/70 bg-background/80 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-2xs">
+                ESC
+              </kbd>
             )}
           </div>
 
@@ -273,19 +287,19 @@ export function CommandPalette({
             )}
           </Command.List>
 
-          <div className="flex items-center justify-between border-t px-3 py-1.5 text-2xs text-muted-foreground">
+          <div className="flex items-center justify-between border-t px-4 py-2 text-2xs text-muted-foreground bg-muted/20">
             <span>
               {criteriaFields.length} criteria fields active
             </span>
             <span className="flex items-center gap-3">
               <span>
-                <kbd className="rounded border px-1 font-mono">↑↓</kbd> navigate
+                <kbd className="rounded border px-1.5 py-0.5 font-mono text-[10px]">↑↓</kbd> navigate
               </span>
               <span>
-                <kbd className="rounded border px-1 font-mono">↵</kbd> open
+                <kbd className="rounded border px-1.5 py-0.5 font-mono text-[10px]">↵</kbd> open
               </span>
               <span>
-                <kbd className="rounded border px-1 font-mono">esc</kbd> close
+                <kbd className="rounded border px-1.5 py-0.5 font-mono text-[10px]">esc</kbd> close
               </span>
             </span>
           </div>

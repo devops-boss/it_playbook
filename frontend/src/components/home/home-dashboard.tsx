@@ -177,19 +177,33 @@ export function HomeDashboard({
           </p>
         </div>
 
-        <form onSubmit={submitSearch} className="mt-5 flex max-w-2xl gap-2">
+        <form onSubmit={submitSearch} className="mt-5 flex max-w-2xl gap-2.5 items-center">
           <div className="relative flex-1">
-            <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder="Search symptoms, error messages, ticket IDs..."
-              className="h-10 pl-9 rounded-lg"
+              className="h-10 pl-9.5 pr-8 rounded-lg bg-background"
               aria-label="Search the playbook"
             />
+            {term && (
+              <button
+                type="button"
+                onClick={() => setTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+                aria-label="Clear search"
+              >
+                <IconX className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <Button type="submit" className="h-10 rounded-lg px-5 btn-tactile">
-            Search
+          <Button
+            type="submit"
+            className="h-10 px-5 rounded-lg bg-[#233B74] hover:bg-[#1b2e5c] text-white font-medium shadow-xs transition-all duration-150 active:scale-[0.98] shrink-0 gap-1.5"
+          >
+            <IconSearch className="h-4 w-4" />
+            <span>Search</span>
           </Button>
         </form>
 
