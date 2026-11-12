@@ -173,9 +173,18 @@
     color: inherit;
   }
 
-  /* Visible focus for keyboard users (WCAG 2.4.7) */
-  :focus-visible {
+  /* Visible focus for keyboard users (WCAG 2.4.7), excluding internal command palette input */
+  :focus-visible:not([cmdk-input]) {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* CMD-K / Command Palette input override to eliminate inner blue border/focus ring */
+  [cmdk-input],
+  [cmdk-input]:focus,
+  [cmdk-input]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 
   /* Scroll-spy "on this page" active state */
@@ -379,6 +388,46 @@
     opacity: 1;
     transform: scale(1);
   }
+}
+
+/* ============================================================================ */
+/* View Transitions API: Circular Theme Toggle Transition                       */
+/* ============================================================================ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 9999;
+}
+
+/* Fallback smooth transition for elements when toggling theme without View Transitions */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Smooth, non-exaggerated micro-transitions across UI components */
+button,
+a,
+[role='button'],
+input,
+select,
+textarea {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-duration: 150ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
