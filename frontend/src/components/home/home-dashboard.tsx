@@ -177,25 +177,45 @@ export function HomeDashboard({
           </p>
         </div>
 
-        <form onSubmit={submitSearch} className="mt-5 flex max-w-2xl gap-2">
-          <div className="relative flex-1">
-            <IconSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-              placeholder="Search symptoms, error messages, ticket IDs..."
-              className="h-10 pl-9 rounded-lg"
-              aria-label="Search the playbook"
-            />
+        <form
+          onSubmit={submitSearch}
+          className="mt-5 relative flex items-center w-full max-w-2xl rounded-2xl border border-border/80 dark:border-slate-800 bg-card/90 dark:bg-slate-900/90 shadow-sm backdrop-blur-xs transition-all duration-200 focus-within:border-[#233B74] dark:focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-[#233B74]/10 dark:focus-within:ring-blue-500/15 focus-within:shadow-md hover:border-border dark:hover:border-slate-700 p-1"
+        >
+          <div className="pointer-events-none pl-3.5 pr-2 text-muted-foreground">
+            <IconSearch className="h-4 w-4 text-[#233B74] dark:text-blue-400" />
           </div>
-          <Button type="submit" className="h-10 rounded-lg px-5 btn-tactile">
-            Search
-          </Button>
+          <input
+            type="text"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            placeholder="Search symptoms, error messages, ticket IDs..."
+            className="h-10 w-full flex-1 bg-transparent px-1 text-sm text-foreground outline-none border-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 placeholder:text-muted-foreground"
+            aria-label="Search the playbook"
+          />
+          {term && (
+            <button
+              type="button"
+              onClick={() => setTerm('')}
+              className="p-1.5 text-muted-foreground hover:text-foreground transition-colors mr-1 rounded-md"
+              aria-label="Clear search"
+            >
+              <IconX className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            type="submit"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#233B74] hover:bg-[#1a2c56] dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-medium px-4 h-9 text-xs shadow-xs transition-all duration-150 active:scale-95 shrink-0"
+          >
+            <span>Search</span>
+            <IconArrowRight className="h-3.5 w-3.5 opacity-80" />
+          </button>
         </form>
 
-        <p className="mt-2 text-2xs text-muted-foreground">
-          Press <kbd className="rounded border px-1 font-mono">Ctrl K</kbd> anywhere
-          for the command palette.
+        <p className="mt-2.5 flex items-center gap-1.5 text-2xs text-muted-foreground">
+          <span>Quick search or jump anywhere:</span>
+          <kbd className="inline-flex items-center gap-0.5 rounded border border-border/70 bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            Ctrl K
+          </kbd>
         </p>
       </section>
 
