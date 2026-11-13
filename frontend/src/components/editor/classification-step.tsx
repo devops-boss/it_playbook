@@ -4,9 +4,11 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import {
   IconAlertCircle,
+  IconBook2,
   IconBuildingSkyscraper,
   IconCheck,
   IconChevronDown,
+  IconFlame,
   IconFolders,
   IconGlobe,
   IconPlus,
@@ -73,6 +75,8 @@ interface ClassificationStepProps {
   lockedAccountId?: string | null;
   /** Mode: Troubleshooting Scenario vs Documentation SOP */
   playbookType?: 'scenario' | 'documentation';
+  /** Callback when user changes the playbook format */
+  onPlaybookTypeChange?: (type: 'scenario' | 'documentation') => void;
 }
 
 const SYSTEM_KEY_TO_COLUMN: Record<string, string> = {
@@ -116,6 +120,7 @@ export function ClassificationStep({
   selectedAccountIds = [],
   onSelectedAccountIdsChange,
   playbookType = 'scenario',
+  onPlaybookTypeChange,
 }: ClassificationStepProps) {
   const [newCategory, setNewCategory] = React.useState('');
   const [accountSearch, setAccountSearch] = React.useState('');
@@ -283,6 +288,105 @@ export function ClassificationStep({
           </div>
         </CardHeader>
         <CardContent className="px-4 sm:px-5 pb-5 pt-0 space-y-4">
+          {/* Playbook Format Selector */}
+          {onPlaybookTypeChange && (
+            <div className="space-y-1.5 pb-1">
+              <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span>Playbook Format</span>
+                <span className="text-[11px] text-muted-foreground font-normal">
+                  {playbookType === 'documentation'
+                    ? 'Training, Server Setups & General SOPs'
+                    : 'Incident Diagnosis & Flowcharts'}
+                </span>
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => onPlaybookTypeChange('scenario')}
+                  className={cn(
+                    'group flex items-start gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer select-none active:scale-[0.99]',
+                    playbookType === 'scenario'
+                      ? 'border-amber-500/60 bg-amber-500/[0.08] shadow-xs ring-1 ring-amber-500/30'
+                      : 'border-border/80 bg-card hover:bg-accent/40 hover:border-border',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-md shrink-0 transition-colors',
+                      playbookType === 'scenario'
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-muted text-muted-foreground group-hover:text-amber-500',
+                    )}
+                  >
+                    <IconFlame className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={cn(
+                          'text-xs font-semibold',
+                          playbookType === 'scenario'
+                            ? 'text-amber-950 dark:text-amber-100'
+                            : 'text-foreground',
+                        )}
+                      >
+                        Troubleshooting Scenario
+                      </span>
+                      {playbookType === 'scenario' && (
+                        <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                      For incident diagnosis, root causes, branching flowcharts, and resolution steps.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onPlaybookTypeChange('documentation')}
+                  className={cn(
+                    'group flex items-start gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer select-none active:scale-[0.99]',
+                    playbookType === 'documentation'
+                      ? 'border-blue-500/60 bg-blue-500/[0.08] shadow-xs ring-1 ring-blue-500/30'
+                      : 'border-border/80 bg-card hover:bg-accent/40 hover:border-border',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-md shrink-0 transition-colors',
+                      playbookType === 'documentation'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-muted text-muted-foreground group-hover:text-blue-500',
+                    )}
+                  >
+                    <IconBook2 className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={cn(
+                          'text-xs font-semibold',
+                          playbookType === 'documentation'
+                            ? 'text-blue-950 dark:text-blue-100'
+                            : 'text-foreground',
+                        )}
+                      >
+                        Documentation &amp; SOP
+                      </span>
+                      {playbookType === 'documentation' && (
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">
+                      For server setup guides, architecture, internal procedures, and IT training.
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Playbook Title */}
           {onTitleChange && (
             <div className="space-y-1.5">

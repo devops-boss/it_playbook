@@ -728,32 +728,67 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           <Separator orientation="vertical" className="h-5" />
 
           {/* Mode Switcher: Scenario vs Documentation */}
-          <div className="flex items-center rounded-lg border bg-muted/40 p-0.5">
+          <div
+            className="inline-flex items-center rounded-lg border border-border/80 bg-muted/60 p-1 shadow-2xs gap-1"
+            role="tablist"
+            aria-label="Playbook Format"
+          >
             <button
               type="button"
+              role="tab"
+              aria-selected={playbookType === 'scenario'}
               onClick={() => handlePlaybookTypeChange('scenario')}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-medium transition-all cursor-pointer',
+                'group flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-all cursor-pointer font-medium select-none',
+                'active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                 playbookType === 'scenario'
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-background text-foreground shadow-xs border border-border/80 font-semibold ring-1 ring-amber-500/30'
+                  : 'text-muted-foreground hover:bg-background/70 hover:text-foreground hover:border-border/50 border border-transparent',
               )}
             >
-              <IconFlame className="h-3 w-3 text-amber-500" />
+              <div
+                className={cn(
+                  'flex h-4 w-4 items-center justify-center rounded transition-colors',
+                  playbookType === 'scenario'
+                    ? 'text-amber-500'
+                    : 'text-muted-foreground group-hover:text-amber-500',
+                )}
+              >
+                <IconFlame className="h-3.5 w-3.5 shrink-0" />
+              </div>
               <span>Troubleshooting Scenario</span>
+              {playbookType === 'scenario' ? (
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 ml-0.5" />
+              ) : null}
             </button>
+
             <button
               type="button"
+              role="tab"
+              aria-selected={playbookType === 'documentation'}
               onClick={() => handlePlaybookTypeChange('documentation')}
               className={cn(
-                'flex items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-medium transition-all cursor-pointer',
+                'group flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-all cursor-pointer font-medium select-none',
+                'active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                 playbookType === 'documentation'
-                  ? 'bg-background text-foreground shadow-2xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground',
+                  ? 'bg-background text-foreground shadow-xs border border-border/80 font-semibold ring-1 ring-blue-500/30'
+                  : 'text-muted-foreground hover:bg-background/70 hover:text-foreground hover:border-border/50 border border-transparent',
               )}
             >
-              <IconBook2 className="h-3 w-3 text-[#233B74] dark:text-blue-400" />
+              <div
+                className={cn(
+                  'flex h-4 w-4 items-center justify-center rounded transition-colors',
+                  playbookType === 'documentation'
+                    ? 'text-blue-500'
+                    : 'text-muted-foreground group-hover:text-blue-500',
+                )}
+              >
+                <IconBook2 className="h-3.5 w-3.5 shrink-0" />
+              </div>
               <span>Documentation &amp; SOP</span>
+              {playbookType === 'documentation' ? (
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0 ml-0.5" />
+              ) : null}
             </button>
           </div>
 
@@ -930,6 +965,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 }}
                 lockedAccountId={scenario?.account_id ?? null}
                 playbookType={playbookType}
+                onPlaybookTypeChange={handlePlaybookTypeChange}
               />
             )}
 
