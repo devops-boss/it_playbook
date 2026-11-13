@@ -4,11 +4,13 @@ import * as React from 'react';
 import Link from 'next/link';
 import {
   IconBolt,
+  IconBook2,
   IconBuildingSkyscraper,
   IconCheck,
   IconClock,
   IconCopy,
   IconFlame,
+  IconGlobe,
   IconTicket,
   IconWorld,
 } from '@tabler/icons-react';
@@ -34,6 +36,7 @@ export interface ScenarioCardProps {
   chips: ResolvedChip[];
   onChipClick?: (chip: ResolvedChip) => void;
   className?: string;
+  isDocumentation?: boolean;
 }
 
 function stripHtml(html?: string | null): string {
@@ -97,6 +100,7 @@ export function ScenarioCard({
   chips,
   onChipClick,
   className,
+  isDocumentation,
 }: ScenarioCardProps) {
   const cleanQuickFix = stripHtml(quickFix);
 
@@ -104,6 +108,7 @@ export function ScenarioCard({
     <article
       className={cn(
         'group relative rounded-xl border bg-card p-4 card-hover hover:border-primary/50 hover:bg-accent/10',
+        isDocumentation && 'hover:border-blue-500/50 hover:bg-blue-500/[0.03]',
         className,
       )}
     >
@@ -120,14 +125,33 @@ export function ScenarioCard({
               </Link>
             </h3>
 
+            {isDocumentation && (
+              <Badge
+                variant="outline"
+                className="h-4 shrink-0 gap-1 px-1.5 text-[10px] text-blue-600 dark:text-blue-400 border-blue-500/30 bg-blue-500/10 font-semibold"
+                title="Documentation & SOP Guide"
+              >
+                <IconBook2 className="h-2.5 w-2.5" />
+                Documentation
+              </Badge>
+            )}
+
             {isGlobal ? (
               <Badge
                 variant="outline"
                 className="h-4 shrink-0 gap-1 px-1.5 text-[10px] text-muted-foreground border-border/80"
-                title="Applies to all accounts (Global SOP)"
+                title={
+                  isDocumentation
+                    ? 'General Knowledge Base (Internal / Universal)'
+                    : 'Applies to all accounts (Global Scenario)'
+                }
               >
-                <IconWorld className="h-2.5 w-2.5 text-primary" />
-                Global SOP
+                {isDocumentation ? (
+                  <IconGlobe className="h-2.5 w-2.5 text-blue-500" />
+                ) : (
+                  <IconWorld className="h-2.5 w-2.5 text-primary" />
+                )}
+                {isDocumentation ? 'General Knowledge Base' : 'Global Scenario'}
               </Badge>
             ) : accountName ? (
               <Badge

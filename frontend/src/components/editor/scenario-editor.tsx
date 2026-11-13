@@ -165,16 +165,32 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
   const handlePlaybookTypeChange = (type: 'scenario' | 'documentation') => {
     setPlaybookType(type);
-    setState((prev) => ({
-      ...prev,
-      custom_sections: {
-        ...prev.custom_sections,
-        playbook_type: type,
-      },
-      tags: type === 'documentation' && !prev.tags.includes('documentation')
-        ? [...prev.tags, 'documentation']
-        : prev.tags,
-    }));
+    if (type === 'documentation') {
+      setState((prev) => ({
+        ...prev,
+        is_global: true,
+        account_id: null,
+        account_ids: [],
+        custom_sections: {
+          ...prev.custom_sections,
+          playbook_type: 'documentation',
+        },
+        tags: prev.tags.includes('documentation') ? prev.tags : [...prev.tags, 'documentation'],
+      }));
+      setClassification((prev) => ({
+        ...prev,
+        system: { ...prev.system, account: null },
+      }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        custom_sections: {
+          ...prev.custom_sections,
+          playbook_type: 'scenario',
+        },
+        tags: prev.tags.filter((t) => t !== 'documentation' && t !== 'sop'),
+      }));
+    }
   };
 
   // Seed form
@@ -913,6 +929,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                   }));
                 }}
                 lockedAccountId={scenario?.account_id ?? null}
+                playbookType={playbookType}
               />
             )}
 

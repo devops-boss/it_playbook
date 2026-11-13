@@ -5,14 +5,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   IconBolt,
+  IconBook2,
   IconCheck,
   IconFilter,
+  IconFlame,
   IconPlus,
   IconRefresh,
   IconSearch,
   IconTicket,
   IconX,
 } from '@tabler/icons-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,8 +36,10 @@ import {
   getFacetCounts,
   getOptionsForFields,
   getCriteriaValuesForScenarios,
+  getPlaybookMetaMap,
   searchScenarios,
 } from '@/lib/data/criteria-client';
+import type { PlaybookMeta } from '@/lib/data/criteria-core';
 import { buildCriteriaLookup, resolveChips } from '@/lib/data/criteria-lookup';
 import type { ResolvedChip } from '@/lib/data/criteria-lookup';
 import { cn } from '@/lib/utils';
@@ -96,6 +101,7 @@ export function SearchResults({ fields, accounts, categories = [], initialQuery 
   const [criteriaValues, setCriteriaValues] = React.useState<
     Record<string, ScenarioCriteriaValue[]>
   >({});
+  const [metaMap, setMetaMap] = React.useState<Record<string, PlaybookMeta>>({});
   const [loading, setLoading] = React.useState(true);
   const [searchTimeMs, setSearchTimeMs] = React.useState<number | null>(null);
   const [railOpen, setRailOpen] = React.useState(false);
@@ -136,9 +142,15 @@ export function SearchResults({ fields, accounts, categories = [], initialQuery 
         setFacets(facetRows);
         setSearchTimeMs(Math.round(performance.now() - startTime));
 
-        // Custom criteria for the visible rows (one extra round trip).
-        const values = await getCriteriaValuesForScenarios(rows.map((r) => r.id));
-        if (!cancelled) setCriteriaValues(values);
+        // Custom criteria and playbook metadata for visible rows
+        const [values, meta] = await Promise.all([
+          getCriteriaValuesForScenarios(rows.map((r) => r.id)),
+          getPlaybookMetaMap(rows.map((r) => r.id)),
+        ]);
+        if (!cancelled) {
+          setCriteriaValues(values);
+          setMetaMap(meta);
+        }
       } catch {
         if (!cancelled) {
           setResults([]);
@@ -411,28 +423,133 @@ export function SearchResults({ fields, accounts, categories = [], initialQuery 
               }}
             />
           ) : (
-            <div className="space-y-3">
-              {results.map((result) => (
-                <ScenarioCard
-                  key={result.id}
-                  id={result.id}
-                  title={result.title}
-                  slug={result.slug}
-                  summary={result.summary}
-                  quickFix={result.quick_fix}
-                  sampleTicketIds={result.sample_ticket_ids}
-                  searchQuery={filters.query}
-                  accountName={result.account_id ? accountNames.get(result.account_id) : null}
-                  occurrenceCount={result.occurrence_count}
-                  lastOccurredAt={result.last_occurred_at}
-                  updatedAt={result.updated_at}
-                  isGlobal={result.is_global}
-                  status={result.status}
-                  chips={chipsByScenario.get(result.id) ?? []}
-                  onChipClick={(chip) => handleChipClick(chip.fieldKey, chip.optionId)}
-                />
-              ))}
-            </div>
+            (() => {
+              const docResults = results.filter((r) => metaMap[r.id]?.isDocumentation);
+              const scenarioResults = results.filter((r) => !metaMap[r.id]?.isDocumentation);
+
+              // If both types exist, render segregated sections with Documentation on top
+              if (docResults.length > 0 && scenarioResults.length > 0) {
+                return (
+                  <div className="space-y-6">
+                    {/* Documentation & SOP Guides (ON TOP) */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-border/80">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                            <IconBook2 className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Documentation & Setup Guides
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1.5 text-[10px] font-mono border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5"
+                          >
+                            {docResults.length}
+                          </Badge>
+                        </div>
+                        <span className="text-2xs text-muted-foreground">Internal Knowledge Base / SOPs</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {docResults.map((result) => (
+                          <ScenarioCard
+                            key={result.id}
+                            id={result.id}
+                            title={result.title}
+                            slug={result.slug}
+                            summary={result.summary}
+                            quickFix={result.quick_fix}
+                            sampleTicketIds={result.sample_ticket_ids}
+                            searchQuery={filters.query}
+                            accountName={result.account_id ? accountNames.get(result.account_id) : null}
+                            occurrenceCount={result.occurrence_count}
+                            lastOccurredAt={result.last_occurred_at}
+                            updatedAt={result.updated_at}
+                            isGlobal={result.is_global}
+                            status={result.status}
+                            isDocumentation={true}
+                            chips={chipsByScenario.get(result.id) ?? []}
+                            onChipClick={(chip) => handleChipClick(chip.fieldKey, chip.optionId)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Troubleshooting Scenarios (BELOW) */}
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between pb-2 border-b border-border/80">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <IconFlame className="h-3.5 w-3.5" />
+                          </div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                            Troubleshooting Scenarios
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="h-4 px-1.5 text-[10px] font-mono border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5"
+                          >
+                            {scenarioResults.length}
+                          </Badge>
+                        </div>
+                        <span className="text-2xs text-muted-foreground">Incident diagnosis & fixes</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {scenarioResults.map((result) => (
+                          <ScenarioCard
+                            key={result.id}
+                            id={result.id}
+                            title={result.title}
+                            slug={result.slug}
+                            summary={result.summary}
+                            quickFix={result.quick_fix}
+                            sampleTicketIds={result.sample_ticket_ids}
+                            searchQuery={filters.query}
+                            accountName={result.account_id ? accountNames.get(result.account_id) : null}
+                            occurrenceCount={result.occurrence_count}
+                            lastOccurredAt={result.last_occurred_at}
+                            updatedAt={result.updated_at}
+                            isGlobal={result.is_global}
+                            status={result.status}
+                            isDocumentation={false}
+                            chips={chipsByScenario.get(result.id) ?? []}
+                            onChipClick={(chip) => handleChipClick(chip.fieldKey, chip.optionId)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  {results.map((result) => (
+                    <ScenarioCard
+                      key={result.id}
+                      id={result.id}
+                      title={result.title}
+                      slug={result.slug}
+                      summary={result.summary}
+                      quickFix={result.quick_fix}
+                      sampleTicketIds={result.sample_ticket_ids}
+                      searchQuery={filters.query}
+                      accountName={result.account_id ? accountNames.get(result.account_id) : null}
+                      occurrenceCount={result.occurrence_count}
+                      lastOccurredAt={result.last_occurred_at}
+                      updatedAt={result.updated_at}
+                      isGlobal={result.is_global}
+                      status={result.status}
+                      isDocumentation={Boolean(metaMap[result.id]?.isDocumentation)}
+                      chips={chipsByScenario.get(result.id) ?? []}
+                      onChipClick={(chip) => handleChipClick(chip.fieldKey, chip.optionId)}
+                    />
+                  ))}
+                </div>
+              );
+            })()
           )}
 
           {/* Pagination */}

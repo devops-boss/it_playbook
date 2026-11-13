@@ -237,3 +237,24 @@ export function stableStringify(value: unknown): string {
     return val;
   });
 }
+
+/**
+ * Checks if a playbook / scenario is classified as Documentation / SOP.
+ */
+export function isDocumentationPlaybook(item?: {
+  tags?: string[] | null;
+  custom_sections?: unknown;
+  playbook_type?: string | null;
+} | null): boolean {
+  if (!item) return false;
+  if (item.playbook_type === 'documentation' || item.playbook_type === 'sop') return true;
+  if (Array.isArray(item.tags) && (item.tags.includes('documentation') || item.tags.includes('sop'))) {
+    return true;
+  }
+  const cs = item.custom_sections;
+  if (cs && typeof cs === 'object') {
+    const pt = (cs as Record<string, unknown>).playbook_type;
+    if (pt === 'documentation' || pt === 'sop') return true;
+  }
+  return false;
+}

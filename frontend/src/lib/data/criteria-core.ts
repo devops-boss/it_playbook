@@ -1,9 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { toUpstreamError } from '@/lib/api-error';
+import { isDocumentationPlaybook } from '@/lib/utils';
 import type {
   CriteriaOption,
   FacetCount,
   FilterState,
+  Scenario,
   ScenarioCriteriaValue,
   SearchResult,
   SortOption,
@@ -157,4 +159,62 @@ export async function getCriteriaValuesForScenarios(
     (grouped[value.scenario_id] ??= []).push(value);
   }
   return grouped;
+}
+
+export interface PlaybookMeta {
+  isDocumentation: boolean;
+  tags: string[];
+}
+
+/**
+ * Fetch playbook metadata (documentation vs scenario, tags) for a batch of scenarios.
+ */
+export async function getPlaybookMetaMap(
+  supabase: SupabaseClient,
+  scenarioIds: string[],
+): Promise<Record<string, PlaybookMeta>> {
+  if (scenarioIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('pb_scenarios')
+    .select('id, tags, custom_sections')
+    .in('id', scenarioIds);
+
+  if (error) {
+    console.error('Failed to fetch playbook meta map', error);
+    return {};
+  }
+
+  const map: Record<string, PlaybookMeta> = {};
+  for (const row of data ?? []) {
+    map[row.id] = {
+      isDocumentation: isDocumentationPlaybook(row),
+      tags: row.tags ?? [],
+    };
+  }
+  return map;
+}
+
+/**
+ * Fetch published documentation & SOP playbooks for the knowledge base.
+ */
+export async function getDocumentationPlaybooks(
+  supabase: SupabaseClient,
+  limit = 8,
+): Promise<Scenario[]> {
+  const { data, error } = await supabase
+    .from('pb_scenarios')
+    .select('*')
+    .is('deleted_at', null)
+    .eq('status', 'published')
+    .order('updated_at', { ascending: false })
+    .limit(limit * 3);
+
+  if (error) {
+    console.error('Failed to fetch documentation playbooks', error);
+    return [];
+  }
+
+  const docs = ((data ?? []) as Scenario[]).filter((s) => isDocumentationPlaybook(s));
+  return docs.slice(0, limit);
 }

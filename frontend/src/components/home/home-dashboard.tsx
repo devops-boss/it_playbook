@@ -33,6 +33,7 @@ import type {
   Category,
   CriteriaField,
   CriteriaOption,
+  Scenario,
   ScenarioCriteriaValue,
   SearchResult,
 } from '@/types/database';
@@ -47,6 +48,9 @@ interface HomeDashboardProps {
   /** Top problems, ranked by occurrence count. */
   frequent: SearchResult[];
   frequentValues: Record<string, ScenarioCriteriaValue[]>;
+  /** Documentation & SOP guides. */
+  documentationPlaybooks?: Scenario[];
+  docValues?: Record<string, ScenarioCriteriaValue[]>;
   /** Accounts with their counts, for the account tiles. */
   accountCounts: Record<string, number>;
   userName: string;
@@ -61,6 +65,8 @@ export function HomeDashboard({
   recentValues,
   frequent,
   frequentValues,
+  documentationPlaybooks = [],
+  docValues = {},
   accountCounts,
   userName,
 }: HomeDashboardProps) {
@@ -484,43 +490,97 @@ export function HomeDashboard({
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-fade-in-up">
-        {/* Frequent problems */}
-        <section>
-          <div className="mb-2.5 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold tracking-tight">
-              <IconFlame className="h-4 w-4 text-muted-foreground" />
-              Most frequent problems
-            </h2>
-            <Button variant="ghost" size="sm" className="h-7 text-2xs" asChild>
-              <Link href="/search?sort=frequency">View all</Link>
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {scopedFrequent.length === 0 ? (
-              <p className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
-                {selectedAccountIds.length > 0
-                  ? 'No frequent playbooks found for the selected account(s).'
-                  : 'No scenarios published yet.'}
-              </p>
-            ) : (
-              scopedFrequent.map((result) => (
-                <ScenarioCard
-                  key={result.id}
-                  id={result.id}
-                  title={result.title}
-                  slug={result.slug}
-                  summary={result.summary}
-                  occurrenceCount={result.occurrence_count}
-                  lastOccurredAt={result.last_occurred_at}
-                  updatedAt={result.updated_at}
-                  isGlobal={result.is_global}
-                  status={result.status}
-                  chips={chipsFor(result, frequentValues)}
-                />
-              ))
-            )}
-          </div>
-        </section>
+        {/* Left Column: Frequent problems + Documentation & SOPs */}
+        <div className="space-y-6">
+          {/* Frequent problems */}
+          <section>
+            <div className="mb-2.5 flex items-center justify-between">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold tracking-tight">
+                <IconFlame className="h-4 w-4 text-amber-500" />
+                Most frequent problems
+              </h2>
+              <Button variant="ghost" size="sm" className="h-7 text-2xs" asChild>
+                <Link href="/search?sort=frequency">View all</Link>
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {scopedFrequent.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-6 text-center text-xs text-muted-foreground">
+                  {selectedAccountIds.length > 0
+                    ? 'No frequent playbooks found for the selected account(s).'
+                    : 'No scenarios published yet.'}
+                </p>
+              ) : (
+                scopedFrequent.map((result) => (
+                  <ScenarioCard
+                    key={result.id}
+                    id={result.id}
+                    title={result.title}
+                    slug={result.slug}
+                    summary={result.summary}
+                    occurrenceCount={result.occurrence_count}
+                    lastOccurredAt={result.last_occurred_at}
+                    updatedAt={result.updated_at}
+                    isGlobal={result.is_global}
+                    status={result.status}
+                    chips={chipsFor(result, frequentValues)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Documentation & SOP Guides Section */}
+          <section className="rounded-xl border border-blue-500/20 bg-gradient-to-b from-blue-500/[0.04] to-transparent p-4 shadow-2xs">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h2 className="flex items-center gap-1.5 text-sm font-semibold tracking-tight text-foreground">
+                  <IconBook2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  Documentation & SOP Setup Guides
+                </h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  General server setups, infrastructure configurations, and internal IT SOPs.
+                </p>
+              </div>
+              <Badge variant="outline" className="h-4 px-1.5 text-[10px] font-mono border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/10 shrink-0">
+                {documentationPlaybooks.length} SOPs
+              </Badge>
+            </div>
+
+            <div className="space-y-2">
+              {documentationPlaybooks.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border/80 p-5 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    No documentation SOPs published yet.
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-2 h-7 text-2xs gap-1 border-blue-500/30 text-blue-600 hover:bg-blue-500/10" asChild>
+                    <Link href="/scenarios/new">
+                      <IconPlus className="h-3 w-3" />
+                      Create First SOP Guide
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                documentationPlaybooks.map((doc) => (
+                  <ScenarioCard
+                    key={doc.id}
+                    id={doc.id}
+                    title={doc.title}
+                    slug={doc.slug}
+                    summary={doc.summary}
+                    occurrenceCount={doc.occurrence_count}
+                    lastOccurredAt={doc.last_occurred_at}
+                    updatedAt={doc.updated_at}
+                    isGlobal={true}
+                    status={doc.status}
+                    isDocumentation={true}
+                    chips={chipsFor(doc as unknown as SearchResult, docValues)}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        </div>
 
         {/* Recently updated + categories */}
         <div className="space-y-6">

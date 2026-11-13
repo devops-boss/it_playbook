@@ -55,3 +55,13 @@ export async function getCriteriaValuesForScenarios(
 ): Promise<Record<string, ScenarioCriteriaValue[]>> {
   return core.getCriteriaValuesForScenarios(createClient(), scenarioIds);
 }
+
+/** Fetch playbook metadata (documentation vs scenario, tags) for a batch of scenarios. */
+export async function getPlaybookMetaMap(scenarioIds: string[]) {
+  return core.getPlaybookMetaMap(createClient(), scenarioIds);
+}
+
+/** Fetch published documentation & SOP playbooks. */
+export async function getDocumentationPlaybooks(limit = 8) {
+  return core.getDocumentationPlaybooks(createClient(), limit);
+}

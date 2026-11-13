@@ -3,13 +3,14 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { IconCheck, IconChevronRight, IconWorld } from '@tabler/icons-react';
+import { IconBook2, IconCheck, IconChevronRight, IconFlame, IconWorld } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScenarioCard } from '@/components/scenarios/scenario-card';
 import { useAppStore } from '@/lib/store/app-store';
+import { getPlaybookMetaMap } from '@/lib/data/criteria-client';
 import { cn, chipStyle } from '@/lib/utils';
 import type { Account, Category, CategoryPlaybookRow } from '@/types/database';
 
@@ -45,6 +46,15 @@ export function CategoryPlaybook({
   const setAccountMatch = useAppStore((s) => s.setAccountMatch);
   const toggleAccount = useAppStore((s) => s.toggleAccount);
   const setSelectedAccountIds = useAppStore((s) => s.setSelectedAccountIds);
+
+  const [metaMap, setMetaMap] = React.useState<Record<string, { isDocumentation: boolean }>>({});
+
+  React.useEffect(() => {
+    if (rows.length === 0) return;
+    getPlaybookMetaMap(rows.map((r) => r.id))
+      .then(setMetaMap)
+      .catch(() => {});
+  }, [rows]);
 
   const updateUrl = React.useCallback(
     (changes: Record<string, string | undefined>) => {
@@ -276,42 +286,105 @@ export function CategoryPlaybook({
           </div>
         ) : (
           <div className="space-y-5">
-            {grouped.map(([key, group]) => (
-              <section key={key}>
-                <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold">
-                  {key === 'global' ? (
-                    <IconWorld className="h-3.5 w-3.5 text-muted-foreground" />
+            {grouped.map(([key, group]) => {
+              const docRows = group.rows.filter((r) => metaMap[r.id]?.isDocumentation);
+              const scenarioRows = group.rows.filter((r) => !metaMap[r.id]?.isDocumentation);
+
+              return (
+                <section key={key}>
+                  <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold">
+                    {key === 'global' ? (
+                      <IconWorld className="h-3.5 w-3.5 text-muted-foreground" />
+                    ) : (
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: group.color ?? '#94a3b8' }}
+                        aria-hidden
+                      />
+                    )}
+                    {group.name}
+                    <span className="text-2xs font-normal tabular-nums text-muted-foreground">
+                      {group.rows.length}
+                    </span>
+                  </h2>
+
+                  {docRows.length > 0 && scenarioRows.length > 0 ? (
+                    <div className="space-y-4">
+                      {/* Documentation Section (On Top) */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-2xs font-semibold text-blue-600 dark:text-blue-400">
+                          <IconBook2 className="h-3 w-3" />
+                          <span>Documentation & Setup Guides ({docRows.length})</span>
+                        </div>
+                        <div className="space-y-2">
+                          {docRows.map((row) => (
+                            <ScenarioCard
+                              key={row.id}
+                              id={row.id}
+                              title={row.title}
+                              slug={row.slug}
+                              summary={row.summary}
+                              occurrenceCount={row.occurrence_count}
+                              lastOccurredAt={null}
+                              updatedAt={row.updated_at}
+                              isGlobal={row.is_global}
+                              status="published"
+                              isDocumentation={true}
+                              chips={rowChips(row)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Troubleshooting Section (Below) */}
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center gap-1.5 text-2xs font-semibold text-amber-600 dark:text-amber-400">
+                          <IconFlame className="h-3 w-3" />
+                          <span>Troubleshooting Scenarios ({scenarioRows.length})</span>
+                        </div>
+                        <div className="space-y-2">
+                          {scenarioRows.map((row) => (
+                            <ScenarioCard
+                              key={row.id}
+                              id={row.id}
+                              title={row.title}
+                              slug={row.slug}
+                              summary={row.summary}
+                              occurrenceCount={row.occurrence_count}
+                              lastOccurredAt={null}
+                              updatedAt={row.updated_at}
+                              isGlobal={row.is_global}
+                              status="published"
+                              isDocumentation={false}
+                              chips={rowChips(row)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <span
-                      className="h-2 w-2 rounded-full"
-                      style={{ backgroundColor: group.color ?? '#94a3b8' }}
-                      aria-hidden
-                    />
+                    <div className="space-y-2">
+                      {group.rows.map((row) => (
+                        <ScenarioCard
+                          key={row.id}
+                          id={row.id}
+                          title={row.title}
+                          slug={row.slug}
+                          summary={row.summary}
+                          occurrenceCount={row.occurrence_count}
+                          lastOccurredAt={null}
+                          updatedAt={row.updated_at}
+                          isGlobal={row.is_global}
+                          status="published"
+                          isDocumentation={Boolean(metaMap[row.id]?.isDocumentation)}
+                          chips={rowChips(row)}
+                        />
+                      ))}
+                    </div>
                   )}
-                  {group.name}
-                  <span className="text-2xs font-normal tabular-nums text-muted-foreground">
-                    {group.rows.length}
-                  </span>
-                </h2>
-                <div className="space-y-2">
-                  {group.rows.map((row) => (
-                    <ScenarioCard
-                      key={row.id}
-                      id={row.id}
-                      title={row.title}
-                      slug={row.slug}
-                      summary={row.summary}
-                      occurrenceCount={row.occurrence_count}
-                      lastOccurredAt={null}
-                      updatedAt={row.updated_at}
-                      isGlobal={row.is_global}
-                      status="published"
-                      chips={rowChips(row)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+                </section>
+              );
+            })}
           </div>
         )}
       </div>
