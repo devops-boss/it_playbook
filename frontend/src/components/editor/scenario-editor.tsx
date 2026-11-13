@@ -727,70 +727,28 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
           <Separator orientation="vertical" className="h-5" />
 
-          {/* Mode Switcher: Scenario vs Documentation */}
-          <div
-            className="inline-flex items-center rounded-lg border border-border/80 bg-muted/60 p-1 shadow-2xs gap-1"
-            role="tablist"
-            aria-label="Playbook Format"
+          {/* Current Format Pill (Informative badge, not duplicate buttons) */}
+          <Badge
+            variant="outline"
+            className={cn(
+              'h-6 gap-1 px-2 text-2xs font-semibold select-none',
+              playbookType === 'documentation'
+                ? 'text-blue-700 dark:text-blue-300 border-blue-500/30 bg-blue-500/10'
+                : 'text-amber-800 dark:text-amber-300 border-amber-500/30 bg-amber-500/10',
+            )}
           >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={playbookType === 'scenario'}
-              onClick={() => handlePlaybookTypeChange('scenario')}
-              className={cn(
-                'group flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-all cursor-pointer font-medium select-none',
-                'active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                playbookType === 'scenario'
-                  ? 'bg-background text-foreground shadow-xs border border-border/80 font-semibold ring-1 ring-amber-500/30'
-                  : 'text-muted-foreground hover:bg-background/70 hover:text-foreground hover:border-border/50 border border-transparent',
-              )}
-            >
-              <div
-                className={cn(
-                  'flex h-4 w-4 items-center justify-center rounded transition-colors',
-                  playbookType === 'scenario'
-                    ? 'text-amber-500'
-                    : 'text-muted-foreground group-hover:text-amber-500',
-                )}
-              >
-                <IconFlame className="h-3.5 w-3.5 shrink-0" />
-              </div>
-              <span>Troubleshooting Scenario</span>
-              {playbookType === 'scenario' ? (
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0 ml-0.5" />
-              ) : null}
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={playbookType === 'documentation'}
-              onClick={() => handlePlaybookTypeChange('documentation')}
-              className={cn(
-                'group flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-all cursor-pointer font-medium select-none',
-                'active:scale-[0.98] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                playbookType === 'documentation'
-                  ? 'bg-background text-foreground shadow-xs border border-border/80 font-semibold ring-1 ring-blue-500/30'
-                  : 'text-muted-foreground hover:bg-background/70 hover:text-foreground hover:border-border/50 border border-transparent',
-              )}
-            >
-              <div
-                className={cn(
-                  'flex h-4 w-4 items-center justify-center rounded transition-colors',
-                  playbookType === 'documentation'
-                    ? 'text-blue-500'
-                    : 'text-muted-foreground group-hover:text-blue-500',
-                )}
-              >
-                <IconBook2 className="h-3.5 w-3.5 shrink-0" />
-              </div>
-              <span>Documentation &amp; SOP</span>
-              {playbookType === 'documentation' ? (
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0 ml-0.5" />
-              ) : null}
-            </button>
-          </div>
+            {playbookType === 'documentation' ? (
+              <>
+                <IconBook2 className="h-3 w-3 text-blue-500" />
+                <span>Documentation &amp; SOP</span>
+              </>
+            ) : (
+              <>
+                <IconFlame className="h-3 w-3 text-amber-500" />
+                <span>Troubleshooting Scenario</span>
+              </>
+            )}
+          </Badge>
 
           <Separator orientation="vertical" className="h-5 hidden sm:block" />
 
@@ -992,10 +950,14 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground">
-                        Troubleshooting Flowchart (Decision Tree)
+                        {playbookType === 'documentation'
+                          ? 'Architecture & System Flow Diagram'
+                          : 'Troubleshooting Flowchart (Decision Tree)'}
                       </h3>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Visual node editor for decision trees, branching diagnostic paths, and resolutions.
+                        {playbookType === 'documentation'
+                          ? 'Visual diagram editor for architecture, system topology, data flow, or procedure workflow.'
+                          : 'Visual node editor for decision trees, branching diagnostic paths, and resolutions.'}
                       </p>
                     </div>
                   </div>
@@ -1029,8 +991,16 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
             {activeStep.key === 'workarounds' && (
               <RichSection
-                title="Workarounds"
-                help="Temporary solutions while permanent fix is being executed."
+                title={
+                  playbookType === 'documentation'
+                    ? 'Configuration Notes & Verification'
+                    : 'Workarounds'
+                }
+                help={
+                  playbookType === 'documentation'
+                    ? 'Important configuration caveats, testing/verification commands, post-setup checklist, and operational notes.'
+                    : 'Temporary solutions while permanent fix is being executed.'
+                }
                 value={state.workarounds}
                 onChange={(v) => update({ workarounds: v })}
               />
@@ -1072,6 +1042,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               <RelatedScenariosStep
                 scenarioId={scenario?.id ?? null}
                 allScenarios={allScenarios}
+                playbookType={playbookType}
               />
             )}
 
@@ -1573,17 +1544,21 @@ function ResolutionsStep({
             </Button>
             <Button size="sm" className="h-7 gap-1 text-2xs" onClick={addStep}>
               <IconPlus className="h-3.5 w-3.5" />
-              Add Step
+              {playbookType === 'documentation' ? 'Add Setup Step' : 'Add Step'}
             </Button>
           </div>
         </div>
 
         {items.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center">
-            <p className="text-xs text-muted-foreground">No resolution steps added yet.</p>
+            <p className="text-xs text-muted-foreground">
+              {playbookType === 'documentation'
+                ? 'No setup procedure steps added yet.'
+                : 'No resolution steps added yet.'}
+            </p>
             <Button size="sm" variant="outline" className="mt-2 h-7 gap-1 text-2xs" onClick={addStep}>
               <IconPlus className="h-3 w-3" />
-              Add Step 1
+              {playbookType === 'documentation' ? 'Add Setup Step 1' : 'Add Step 1'}
             </Button>
           </div>
         ) : (
@@ -1628,22 +1603,34 @@ function ResolutionsStep({
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-2xs font-medium">Instruction *</Label>
+                  <Label className="text-2xs font-medium">
+                    {playbookType === 'documentation' ? 'Step Instruction / Procedure Details' : 'Instruction'}
+                  </Label>
                   <Textarea
                     value={it.instruction}
                     onChange={(e) => updateStep(idx, { instruction: e.target.value })}
-                    placeholder="e.g. Switch edge router to secondary failover line."
+                    placeholder={
+                      playbookType === 'documentation'
+                        ? 'Describe the setup step, configuration change, or procedure...'
+                        : 'e.g. Switch edge router to secondary failover line.'
+                    }
                     rows={2}
                     className="text-xs"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-2xs font-medium">CLI / PowerShell Command (optional)</Label>
+                  <Label className="text-2xs font-medium">
+                    {playbookType === 'documentation' ? 'Terminal Command / Script (optional)' : 'CLI / PowerShell Command (optional)'}
+                  </Label>
                   <Input
                     value={it.command ?? ''}
                     onChange={(e) => updateStep(idx, { command: e.target.value })}
-                    placeholder="e.g. sudo ip route replace default via 192.168.100.1"
+                    placeholder={
+                      playbookType === 'documentation'
+                        ? 'e.g. sudo apt install -y nginx && sudo systemctl enable --now nginx'
+                        : 'e.g. sudo ip route replace default via 192.168.100.1'
+                    }
                     className="h-7 font-mono text-2xs"
                   />
                 </div>
@@ -2114,9 +2101,11 @@ function AttachmentsStep({
 function RelatedScenariosStep({
   scenarioId,
   allScenarios,
+  playbookType = 'scenario',
 }: {
   scenarioId: string | null;
   allScenarios: Pick<Scenario, 'id' | 'slug' | 'title'>[];
+  playbookType?: 'scenario' | 'documentation';
 }) {
   const [selectedId, setSelectedId] = React.useState('');
   const [relatedList, setRelatedList] = React.useState<{ id: string; title: string; slug: string }[]>([]);
@@ -2188,9 +2177,13 @@ function RelatedScenariosStep({
     <Card>
       <CardContent className="space-y-4 p-4">
         <div>
-          <h3 className="text-xs font-semibold">Related Scenarios</h3>
+          <h3 className="text-xs font-semibold">
+            {playbookType === 'documentation' ? 'Related Documentation & SOPs' : 'Related Scenarios'}
+          </h3>
           <p className="mt-0.5 text-2xs text-muted-foreground">
-            Link other playbooks relevant to this problem (e.g. Wi-Fi issues related to VPN failures).
+            {playbookType === 'documentation'
+              ? 'Link other relevant setup guides, architecture documents, or IT procedures.'
+              : 'Link other playbooks relevant to this problem (e.g. Wi-Fi issues related to VPN failures).'}
           </p>
         </div>
 
@@ -2221,7 +2214,11 @@ function RelatedScenariosStep({
             onChange={(e) => setSelectedId(e.target.value)}
             className="h-8 flex-1 rounded-md border bg-background px-2 text-xs"
           >
-            <option value="">Select a related scenario to link...</option>
+            <option value="">
+              {playbookType === 'documentation'
+                ? 'Select a related setup guide or document to link...'
+                : 'Select a related scenario to link...'}
+            </option>
             {availableScenarios.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.title}

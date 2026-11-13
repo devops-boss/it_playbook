@@ -440,101 +440,103 @@ export function ClassificationStep({
             </div>
           </div>
 
-          {/* 3-Column: Issue Type, Severity, Impact Scope */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/50">
-            {/* Issue Type */}
-            <div className="space-y-1.5">
-              <Label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Issue Type
-              </Label>
-              <Select
-                value={getSystemValue('issue_type') ?? '__none__'}
-                onValueChange={(val) => setSystemValue('issue_type', val === '__none__' ? null : val)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-background">
-                  <SelectValue placeholder="Select type..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" className="text-xs text-muted-foreground">
-                    None / Unspecified
-                  </SelectItem>
-                  {issueTypeOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: opt.color ?? '#64748b' }}
-                        />
-                        <span>{opt.label}</span>
-                      </div>
+          {/* 3-Column: Issue Type, Severity, Impact Scope (Troubleshooting Mode only) */}
+          {playbookType !== 'documentation' && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/50">
+              {/* Issue Type */}
+              <div className="space-y-1.5">
+                <Label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Issue Type
+                </Label>
+                <Select
+                  value={getSystemValue('issue_type') ?? '__none__'}
+                  onValueChange={(val) => setSystemValue('issue_type', val === '__none__' ? null : val)}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Select type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                      None / Unspecified
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    {issueTypeOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: opt.color ?? '#64748b' }}
+                          />
+                          <span>{opt.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Severity */}
-            <div className="space-y-1.5">
-              <Label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Severity
-              </Label>
-              <Select
-                value={getSystemValue('severity') ?? '__none__'}
-                onValueChange={(val) => setSystemValue('severity', val === '__none__' ? null : val)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-background">
-                  <SelectValue placeholder="Select severity..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" className="text-xs text-muted-foreground">
-                    None / Unspecified
-                  </SelectItem>
-                  {severityOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: opt.color ?? '#64748b' }}
-                        />
-                        <span className="font-medium">{opt.label}</span>
-                      </div>
+              {/* Severity */}
+              <div className="space-y-1.5">
+                <Label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Severity
+                </Label>
+                <Select
+                  value={getSystemValue('severity') ?? '__none__'}
+                  onValueChange={(val) => setSystemValue('severity', val === '__none__' ? null : val)}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Select severity..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                      None / Unspecified
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    {severityOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: opt.color ?? '#64748b' }}
+                          />
+                          <span className="font-medium">{opt.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Impact Scope */}
-            <div className="space-y-1.5">
-              <Label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Impact Scope
-              </Label>
-              <Select
-                value={getSystemValue('impact_scope') ?? '__none__'}
-                onValueChange={(val) => setSystemValue('impact_scope', val === '__none__' ? null : val)}
-              >
-                <SelectTrigger className="h-9 text-xs bg-background">
-                  <SelectValue placeholder="Select impact..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" className="text-xs text-muted-foreground">
-                    None / Unspecified
-                  </SelectItem>
-                  {impactScopeOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id} className="text-xs">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ backgroundColor: opt.color ?? '#64748b' }}
-                        />
-                        <span>{opt.label}</span>
-                      </div>
+              {/* Impact Scope */}
+              <div className="space-y-1.5">
+                <Label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Impact Scope
+                </Label>
+                <Select
+                  value={getSystemValue('impact_scope') ?? '__none__'}
+                  onValueChange={(val) => setSystemValue('impact_scope', val === '__none__' ? null : val)}
+                >
+                  <SelectTrigger className="h-9 text-xs bg-background">
+                    <SelectValue placeholder="Select impact..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs text-muted-foreground">
+                      None / Unspecified
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {impactScopeOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ backgroundColor: opt.color ?? '#64748b' }}
+                          />
+                          <span>{opt.label}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Any remaining custom fields (if configured in settings) */}
           {customFields.length > 0 && (
@@ -558,20 +560,35 @@ export function ClassificationStep({
       </Card>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Card 2: Quick Fix & Triage Summary                                */}
+      {/* Card 2: Quick Fix & Triage Summary / Quick Reference & Guide Summary */}
       {/* ------------------------------------------------------------------ */}
       {(onQuickFixChange || onSummaryChange) && (
         <Card className="border border-border/70 shadow-xs">
           <CardHeader className="pb-2.5 pt-4 px-4 sm:px-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#E07E3C]" />
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    playbookType === 'documentation' ? 'bg-blue-600' : 'bg-[#E07E3C]',
+                  )}
+                />
                 <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  Quick Fix & Triage Summary
+                  {playbookType === 'documentation'
+                    ? 'Quick Reference & Overview Summary'
+                    : 'Quick Fix & Triage Summary'}
                 </CardTitle>
               </div>
-              <Badge variant="outline" className="text-[10px] text-[#E07E3C] border-[#E07E3C]/30 bg-[#E07E3C]/5 font-medium">
-                Quick Mode Action
+              <Badge
+                variant="outline"
+                className={cn(
+                  'text-[10px] font-medium',
+                  playbookType === 'documentation'
+                    ? 'text-blue-600 border-blue-500/30 bg-blue-500/5'
+                    : 'text-[#E07E3C] border-[#E07E3C]/30 bg-[#E07E3C]/5',
+                )}
+              >
+                {playbookType === 'documentation' ? 'Documentation Overview' : 'Quick Mode Action'}
               </Badge>
             </div>
           </CardHeader>
@@ -580,14 +597,24 @@ export function ClassificationStep({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="sc-quickfix" className="text-xs font-semibold text-foreground">
-                    Quick Fix (Immediate Action) <span className="text-destructive">*</span>
+                    {playbookType === 'documentation'
+                      ? 'Quick Reference Notes / Key Commands'
+                      : 'Quick Fix (Immediate Action)'}
                   </Label>
-                  <span className="text-[11px] text-muted-foreground">The first action or command to attempt</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {playbookType === 'documentation'
+                      ? 'Essential commands, URLs, default ports, or key notes at a glance'
+                      : 'The first action or command to attempt'}
+                  </span>
                 </div>
                 <RichTextEditor
                   value={quickFix ?? ''}
                   onChange={(v) => onQuickFixChange(v)}
-                  placeholder="e.g. Switch router gateway to secondary failover line (WAN2) and power cycle fiber ONT..."
+                  placeholder={
+                    playbookType === 'documentation'
+                      ? 'e.g. Service: systemctl restart nginx | Config: /etc/nginx/nginx.conf | Default Port: 80, 443 | Access URL: https://internal.domain'
+                      : 'e.g. Switch router gateway to secondary failover line (WAN2) and power cycle fiber ONT...'
+                  }
                   minHeight={90}
                 />
               </div>
@@ -596,13 +623,17 @@ export function ClassificationStep({
             {onSummaryChange && (
               <div className="space-y-1.5">
                 <Label htmlFor="sc-summary" className="text-xs font-semibold text-foreground">
-                  Summary / One-liner <span className="text-destructive">*</span>
+                  {playbookType === 'documentation' ? 'Document Summary' : 'Summary / One-liner'}
                 </Label>
                 <Textarea
                   id="sc-summary"
                   value={summary ?? ''}
                   onChange={(e) => onSummaryChange(e.target.value)}
-                  placeholder="One-sentence description shown in search results and ticket quick matching."
+                  placeholder={
+                    playbookType === 'documentation'
+                      ? 'Brief overview of this setup guide, target architecture, or standard operating procedure.'
+                      : 'One-sentence description shown in search results and ticket quick matching.'
+                  }
                   rows={2}
                   className="text-xs bg-background resize-none"
                 />
