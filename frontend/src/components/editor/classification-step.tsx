@@ -192,7 +192,7 @@ export function ClassificationStep({
     toast.success(`Category "${name}" created and assigned`);
   };
 
-  // Completeness checklist
+  // Completeness checklist (Only Title is strictly required; other sections are modular & optional)
   const missing = React.useMemo(() => {
     const list: { label: string; key: string }[] = [];
 
@@ -200,25 +200,8 @@ export function ClassificationStep({
       list.push({ label: 'Title', key: 'title' });
     }
 
-    const hasAccount = isGlobal || selectedAccountIds.length > 0 || Boolean(getSystemValue('account'));
-    if (!hasAccount) {
-      list.push({ label: 'Account Scope', key: 'account' });
-    }
-
-    if (!getSystemValue('category')) {
-      list.push({ label: 'Category', key: 'category' });
-    }
-
-    if (quickFix !== undefined && (!quickFix || !quickFix.trim())) {
-      list.push({ label: 'Quick Fix', key: 'quick_fix' });
-    }
-
-    if (summary !== undefined && (!summary || !summary.trim())) {
-      list.push({ label: 'Summary', key: 'summary' });
-    }
-
     return list;
-  }, [value, isGlobal, selectedAccountIds, title, quickFix, summary]);
+  }, [title]);
 
   // Filtered accounts based on search
   const filteredAccounts = React.useMemo(() => {
@@ -317,18 +300,24 @@ export function ClassificationStep({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             {/* Account Scope */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <IconBuildingSkyscraper className="h-3.5 w-3.5 text-muted-foreground" />
-                Applicable Account(s) <span className="text-destructive">*</span>
+              <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <IconBuildingSkyscraper className="h-3.5 w-3.5 text-muted-foreground" />
+                  Applicable Account(s)
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">Optional</span>
               </Label>
               {renderAccountControl()}
             </div>
 
             {/* Problem Category */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <IconFolders className="h-3.5 w-3.5 text-muted-foreground" />
-                Problem Category <span className="text-destructive">*</span>
+              <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <IconFolders className="h-3.5 w-3.5 text-muted-foreground" />
+                  Category
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">Optional</span>
               </Label>
               {renderCategoryControl()}
             </div>
@@ -584,6 +573,8 @@ export function ClassificationStep({
   );
 
   function renderAccountControl() {
+    const isGeneralKnowledgeBase = isGlobal || selectedAccountIds.length === 0;
+
     return (
       <div className="space-y-1.5">
         <Popover open={accountDropdownOpen} onOpenChange={setAccountDropdownOpen}>
@@ -594,14 +585,7 @@ export function ClassificationStep({
               className="w-full justify-between h-9 px-3 text-xs font-normal border-input bg-background hover:bg-accent/40"
             >
               <div className="flex items-center gap-2 truncate">
-                {isGlobal ? (
-                  <>
-                    <IconGlobe className="h-3.5 w-3.5 text-[#288FC2] shrink-0" />
-                    <span className="font-semibold text-[#288FC2] dark:text-[#56b0e8] truncate">
-                      All Accounts (Global SOP)
-                    </span>
-                  </>
-                ) : selectedAccountIds.length > 0 ? (
+                {selectedAccountIds.length > 0 ? (
                   <>
                     <IconBuildingSkyscraper className="h-3.5 w-3.5 text-[#233B74] shrink-0" />
                     <span className="font-semibold text-foreground truncate">
@@ -617,8 +601,10 @@ export function ClassificationStep({
                   </>
                 ) : (
                   <>
-                    <IconBuildingSkyscraper className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-muted-foreground">Select target account(s)...</span>
+                    <IconGlobe className="h-3.5 w-3.5 text-[#288FC2] shrink-0" />
+                    <span className="font-medium text-foreground truncate">
+                      General Knowledge Base (Not account-specific)
+                    </span>
                   </>
                 )}
               </div>
@@ -647,18 +633,27 @@ export function ClassificationStep({
               )}
             </div>
 
-            {/* Option 1: Applicable to All Accounts */}
+            {/* Option 1: General Knowledge Base / Not Account-Specific */}
             <div className="p-1.5 border-b bg-muted/20">
-              <label className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent cursor-pointer transition-colors">
+              <label className="flex items-start gap-2.5 px-2 py-2 rounded-md hover:bg-accent cursor-pointer transition-colors">
                 <Checkbox
-                  checked={isGlobal}
-                  onCheckedChange={handleSelectAllAccounts}
+                  checked={isGeneralKnowledgeBase}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      onToggleGlobal?.(true);
+                      onSelectedAccountIdsChange?.([]);
+                      setSystemValue('account', null);
+                    }
+                  }}
                 />
-                <IconGlobe className="h-3.5 w-3.5 text-[#288FC2] shrink-0" />
+                <IconGlobe className="h-4 w-4 text-[#288FC2] shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <span className="text-xs font-semibold text-foreground">
-                    Applicable to All Accounts (Global SOP)
+                  <span className="block text-xs font-semibold text-foreground">
+                    General / Internal IT Knowledge Base
                   </span>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                    Not tied to any specific customer account (e.g. Server Setup, Infrastructure guides, General SOPs).
+                  </p>
                 </div>
               </label>
             </div>
@@ -666,21 +661,24 @@ export function ClassificationStep({
             {/* Option 2: Account Multi-Selection List */}
             <div className="p-1.5">
               <div className="flex items-center justify-between px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-                <span>Client Accounts ({accounts.length})</span>
-                {selectedAccountIds.length > 0 && !isGlobal && (
+                <span>Specific Client Accounts ({accounts.length})</span>
+                {selectedAccountIds.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => onSelectedAccountIdsChange?.([])}
+                    onClick={() => {
+                      onSelectedAccountIdsChange?.([]);
+                      onToggleGlobal?.(true);
+                    }}
                     className="text-[11px] text-primary hover:underline"
                   >
-                    Deselect all ({selectedAccountIds.length})
+                    Clear selection
                   </button>
                 )}
               </div>
 
               <div className="max-h-52 overflow-y-auto space-y-0.5 p-0.5 pr-1.5">
                 {filteredAccounts.map((account) => {
-                  const isChecked = !isGlobal && selectedAccountIds.includes(account.id);
+                  const isChecked = selectedAccountIds.includes(account.id);
                   return (
                     <label
                       key={account.id}
@@ -716,12 +714,7 @@ export function ClassificationStep({
         </Popover>
 
         {/* Selected Account Chips */}
-        {isGlobal ? (
-          <div className="flex items-center gap-1.5 pt-0.5 text-2xs text-[#288FC2] font-medium">
-            <IconGlobe className="h-3.5 w-3.5 shrink-0" />
-            <span>Universal: Available across all client accounts</span>
-          </div>
-        ) : selectedAccountIds.length > 0 ? (
+        {selectedAccountIds.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1 pt-0.5">
             {selectedAccountIds.map((accId) => {
               const acct = accounts.find((a) => a.id === accId);

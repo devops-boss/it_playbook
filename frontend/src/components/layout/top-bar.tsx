@@ -22,6 +22,14 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -55,6 +63,7 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [accountFilter, setAccountFilter] = React.useState('');
+  const [showSignOutDialog, setShowSignOutDialog] = React.useState(false);
   const selectedAccountIds = useAppStore((s) => s.selectedAccountIds);
   const accountMatch = useAppStore((s) => s.accountMatch);
   const setAccountMatch = useAppStore((s) => s.setAccountMatch);
@@ -363,25 +372,58 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onSelect={async () => {
-                try {
-                  const supabase = createClient();
-                  await supabase.auth.signOut();
-                } catch {
-                  // Ignore if already signed out
-                }
-                try {
-                  await fetch('/api/auth/signout', { method: 'POST' });
-                } catch {
-                  // Ignore
-                }
-                window.location.href = '/login';
+              className="text-destructive focus:text-destructive cursor-pointer"
+              onSelect={(e) => {
+                e.preventDefault();
+                setShowSignOutDialog(true);
               }}
             >
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Dialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Confirm Sign Out</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to sign out of the IT Operations Playbook? Any unsaved edits will be lost.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSignOutDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                  } catch {
+                    // Ignore if already signed out
+                  }
+                  try {
+                    await fetch('/api/auth/signout', { method: 'POST' });
+                  } catch {
+                    // Ignore
+                  }
+                  window.location.href = '/login';
+                }}
+              >
+                Sign out
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </header>
   );

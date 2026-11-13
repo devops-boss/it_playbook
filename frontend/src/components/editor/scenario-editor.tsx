@@ -8,10 +8,12 @@ import {
   IconArchive,
   IconArrowLeft,
   IconBookmark,
+  IconBook2,
   IconCheck,
   IconCopy,
   IconDeviceFloppy,
   IconEye,
+  IconFlame,
   IconHistory,
   IconList,
   IconLoader2,
@@ -152,6 +154,28 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const [templateDesc, setTemplateDesc] = React.useState('');
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [newTag, setNewTag] = React.useState('');
+  const [playbookType, setPlaybookType] = React.useState<'scenario' | 'documentation'>(() => {
+    const raw = (scenario?.custom_sections as any)?.playbook_type;
+    if (raw === 'documentation' || raw === 'sop') return 'documentation';
+    if (scenario?.tags?.includes('documentation') || scenario?.tags?.includes('sop')) return 'documentation';
+    return 'scenario';
+  });
+  const [confirmPublishOpen, setConfirmPublishOpen] = React.useState(false);
+  const [confirmDraftOpen, setConfirmDraftOpen] = React.useState(false);
+
+  const handlePlaybookTypeChange = (type: 'scenario' | 'documentation') => {
+    setPlaybookType(type);
+    setState((prev) => ({
+      ...prev,
+      custom_sections: {
+        ...prev.custom_sections,
+        playbook_type: type,
+      },
+      tags: type === 'documentation' && !prev.tags.includes('documentation')
+        ? [...prev.tags, 'documentation']
+        : prev.tags,
+    }));
+  };
 
   // Seed form
   React.useEffect(() => {
@@ -258,8 +282,21 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const update = (patch: Partial<EditorState>) =>
     setState((prev) => ({ ...prev, ...patch }));
 
-  // Steps - Unified setup step 1, removing redundant basics step 2
+  // Steps - Adapting for Troubleshooting Scenario vs Documentation / SOP
   const steps = React.useMemo(() => {
+    if (playbookType === 'documentation') {
+      const docBase = [
+        { key: 'classification', label: '1. Document Setup & Scope' },
+        { key: 'problem', label: '2. Overview & Prerequisites' },
+        { key: 'resolutions', label: '3. Step-by-Step Setup Guide' },
+        { key: 'flowchart', label: '4. Architecture / Diagram' },
+        { key: 'workarounds', label: '5. Notes & Verification' },
+        { key: 'attachments', label: '6. Attachments & Files' },
+        { key: 'related', label: '7. Related Documentation' },
+      ];
+      return [...docBase, { key: 'review', label: 'Review & Publish' }];
+    }
+
     const base = [
       { key: 'classification', label: '1. Playbook Setup & Scope' },
       { key: 'problem', label: '2. Problem & Symptoms' },
@@ -277,21 +314,37 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       .filter((s) => s.is_active && !BASE_SECTION_KEYS.has(s.key))
       .map((s, idx) => ({ key: s.key, label: `${11 + idx}. ${s.label}` }));
 
-    return [...base, ...custom, { key: 'review', label: 'Review' }];
-  }, [sections]);
+    return [...base, ...custom, { key: 'review', label: 'Review & Publish' }];
+  }, [sections, playbookType]);
 
   const activeStep = steps[step];
 
-  // Completeness checklist
+  // Completeness checklist - ONLY Title is strictly required to publish; other parts are modular & optional
   const checklist = React.useMemo(() => {
-    const items: { key: string; label: string; done: boolean }[] = [
-      { key: 'title', label: 'Title', done: state.title.trim().length > 0 },
-      { key: 'summary', label: 'Summary', done: state.summary.trim().length > 0 },
-      { key: 'quick_fix', label: 'Quick fix', done: state.quick_fix.trim().length > 0 },
-      { key: 'symptoms', label: 'Problem description', done: state.symptoms.trim().length > 0 },
+    const isDoc = playbookType === 'documentation';
+    return [
+      { key: 'title', label: 'Title', done: state.title.trim().length > 0, required: true },
+      {
+        key: 'summary',
+        label: isDoc ? 'Document Summary' : 'Summary',
+        done: state.summary.trim().length > 0,
+        required: false,
+      },
+      {
+        key: 'quick_fix',
+        label: isDoc ? 'Quick Reference Notes' : 'Quick fix',
+        done: state.quick_fix.trim().length > 0,
+        required: false,
+      },
+      {
+        key: 'symptoms',
+        label: isDoc ? 'Overview & Prerequisites' : 'Problem description',
+        done: state.symptoms.trim().length > 0,
+        required: false,
+      },
       {
         key: 'resolutions',
-        label: 'Resolution steps',
+        label: isDoc ? 'Step-by-step Setup Guide' : 'Resolution steps',
         done: (() => {
           if (!state.resolutions || !state.resolutions.trim()) return false;
           try {
@@ -301,46 +354,12 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
             return state.resolutions.trim().length > 0;
           }
         })(),
+        required: false,
       },
     ];
+  }, [state, playbookType]);
 
-    const requiredFields = fields.filter(
-      (f) =>
-        f.is_required &&
-        f.is_active &&
-        !['site', 'platform', 'vendor', 'work_setup', 'frequency'].includes(f.key),
-    );
-    for (const field of requiredFields) {
-      if (field.key === 'account') {
-        items.push({
-          key: 'account',
-          label: field.label,
-          done: Boolean(state.is_global || state.account_ids.length > 0 || classification.system.account),
-        });
-      } else if (field.key === 'category') {
-        items.push({
-          key: 'category',
-          label: field.label,
-          done: Boolean(classification.system.category),
-        });
-      } else if (['issue_type', 'severity', 'impact_scope'].includes(field.key)) {
-        items.push({
-          key: field.key,
-          label: field.label,
-          done: Boolean(classification.system[field.key]),
-        });
-      } else {
-        items.push({
-          key: field.id,
-          label: field.label,
-          done: (classification.custom[field.id] ?? []).length > 0,
-        });
-      }
-    }
-
-    return items;
-  }, [state, fields, classification]);
-
+  const canPublish = Boolean(state.title && state.title.trim().length > 0);
   const incomplete = checklist.filter((i) => !i.done);
 
   // Autosave every 2.5s
@@ -376,6 +395,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       const supabase = createClient();
 
       const targetStatus = overrideStatus ?? state.status;
+      const isGlobalEffective = state.is_global || (state.account_ids.length === 0 && !classification.system.account);
 
       const payload: Record<string, unknown> = {
         title: state.title.trim(),
@@ -387,11 +407,14 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         resolutions: state.resolutions || null,
         escalation: state.escalation || null,
         prevention: state.prevention || null,
-        custom_sections: state.custom_sections,
+        custom_sections: {
+          ...state.custom_sections,
+          playbook_type: playbookType,
+        },
         status: targetStatus,
-        is_global: state.is_global,
+        is_global: isGlobalEffective,
         tags: state.tags,
-        account_id: state.is_global ? null : (state.account_ids[0] ?? classification.system.account ?? null),
+        account_id: isGlobalEffective ? null : (state.account_ids[0] ?? classification.system.account ?? null),
         category_id: classification.system.category ?? null,
         issue_type_id: classification.system.issue_type ?? null,
         severity_id: classification.system.severity ?? null,
@@ -503,10 +526,8 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   );
 
   const publish = async () => {
-    if (incomplete.length > 0) {
-      toast.error(
-        `Cannot publish: ${incomplete.length} required ${incomplete.length === 1 ? 'item is' : 'items are'} missing. Check the Review step.`,
-      );
+    if (!state.title || !state.title.trim()) {
+      toast.error('Please enter a Playbook Title before publishing.');
       return;
     }
 
@@ -514,11 +535,11 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
     const res = await persist(false, 'published');
     if (res && res.slug) {
-      toast.success('Scenario published successfully!');
+      toast.success(playbookType === 'documentation' ? 'Documentation published successfully!' : 'Playbook published successfully!');
       router.push(`/scenario/${res.slug}`);
       router.refresh();
     } else if (res && res.id) {
-      toast.success('Scenario published successfully!');
+      toast.success(playbookType === 'documentation' ? 'Documentation published successfully!' : 'Playbook published successfully!');
       router.push(`/scenario/${res.id}`);
       router.refresh();
     }
@@ -677,7 +698,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       {/* ------------------------------------------------------------------ */}
       <div className="min-w-0 flex-1">
         {/* Top Editor Toolbar */}
-        <div className="sticky top-14 z-20 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-2.5 backdrop-blur">
+        <div className="sticky top-14 z-20 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-2 backdrop-blur">
           <Button
             variant="ghost"
             size="sm"
@@ -690,8 +711,40 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
           <Separator orientation="vertical" className="h-5" />
 
-          <span className="text-xs font-semibold truncate max-w-xs">
-            {state.title || 'Untitled scenario'}
+          {/* Mode Switcher: Scenario vs Documentation */}
+          <div className="flex items-center rounded-lg border bg-muted/40 p-0.5">
+            <button
+              type="button"
+              onClick={() => handlePlaybookTypeChange('scenario')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-medium transition-all cursor-pointer',
+                playbookType === 'scenario'
+                  ? 'bg-background text-foreground shadow-2xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <IconFlame className="h-3 w-3 text-amber-500" />
+              <span>Troubleshooting Scenario</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePlaybookTypeChange('documentation')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-medium transition-all cursor-pointer',
+                playbookType === 'documentation'
+                  ? 'bg-background text-foreground shadow-2xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <IconBook2 className="h-3 w-3 text-[#233B74] dark:text-blue-400" />
+              <span>Documentation &amp; SOP</span>
+            </button>
+          </div>
+
+          <Separator orientation="vertical" className="h-5 hidden sm:block" />
+
+          <span className="text-xs font-semibold truncate max-w-xs hidden md:inline">
+            {state.title || (playbookType === 'documentation' ? 'Untitled documentation' : 'Untitled scenario')}
           </span>
 
           <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
@@ -788,7 +841,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               variant="outline"
               size="sm"
               className="h-7 gap-1.5 text-2xs"
-              onClick={() => persist(true)}
+              onClick={() => setConfirmDraftOpen(true)}
               disabled={saving}
             >
               <IconDeviceFloppy className="h-3.5 w-3.5" />
@@ -797,16 +850,19 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
             <Button
               size="sm"
-              className="h-7 gap-1.5 text-2xs font-semibold"
-              onClick={publish}
-              disabled={incomplete.length > 0}
-              title={
-                incomplete.length > 0
-                  ? `${incomplete.length} required items missing`
-                  : undefined
-              }
+              className="h-7 gap-1.5 text-2xs font-semibold bg-[#233B74] hover:bg-[#1b2e5c] text-white"
+              onClick={() => {
+                if (!state.title || !state.title.trim()) {
+                  toast.error('Please enter a Playbook Title before publishing.');
+                  return;
+                }
+                setConfirmPublishOpen(true);
+              }}
+              disabled={!state.title || !state.title.trim() || saving}
+              title={!state.title || !state.title.trim() ? 'Enter a title to publish' : undefined}
             >
-              Publish Directly
+              <IconCheck className="h-3.5 w-3.5" />
+              Publish Playbook
             </Button>
           </div>
         </div>
@@ -862,8 +918,16 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
             {activeStep.key === 'problem' && (
               <RichSection
-                title="Problem description & symptoms"
-                help="What the user reported and what was actually observed. Images can be pasted straight in."
+                title={
+                  playbookType === 'documentation'
+                    ? 'Overview & Prerequisites'
+                    : 'Problem description & symptoms'
+                }
+                help={
+                  playbookType === 'documentation'
+                    ? 'Summary of the setup, environment requirements, prerequisites, and system specifications. Images can be pasted straight in.'
+                    : 'What the user reported and what was actually observed. Images can be pasted straight in.'
+                }
                 value={state.symptoms}
                 onChange={(v) => update({ symptoms: v })}
               />
@@ -923,6 +987,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               <ResolutionsStep
                 value={state.resolutions}
                 onChange={(v) => update({ resolutions: v })}
+                playbookType={playbookType}
               />
             )}
 
@@ -987,8 +1052,15 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 accounts={accounts}
                 categories={categories}
                 checklist={checklist}
+                playbookType={playbookType}
                 onEditStep={(index) => setStep(index)}
-                onPublish={publish}
+                onPublish={() => {
+                  if (!state.title || !state.title.trim()) {
+                    toast.error('Please enter a Playbook Title before publishing.');
+                    return;
+                  }
+                  setConfirmPublishOpen(true);
+                }}
               />
             )}
 
@@ -1093,6 +1165,106 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         </DialogContent>
       </Dialog>
 
+      {/* Confirmation Dialog: Publish Playbook */}
+      <Dialog open={confirmPublishOpen} onOpenChange={setConfirmPublishOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirm Publication</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to publish this {playbookType === 'documentation' ? 'documentation guide' : 'playbook'}?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2.5 py-2 text-xs">
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+              <p className="font-semibold text-foreground text-sm">
+                {state.title || 'Untitled'}
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
+                <Badge variant="outline" className="text-[10px]">
+                  {playbookType === 'documentation' ? 'Documentation / SOP' : 'Troubleshooting Scenario'}
+                </Badge>
+                <span>&bull;</span>
+                <span>
+                  {state.is_global || state.account_ids.length === 0
+                    ? 'General / Universal Knowledge Base'
+                    : `${state.account_ids.length} Selected Accounts`}
+                </span>
+              </div>
+            </div>
+            <p className="text-muted-foreground text-2xs">
+              Once published, this playbook will be immediately live and searchable by team members in the knowledge base.
+            </p>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmPublishOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-[#233B74] hover:bg-[#1b2e5c] text-white font-medium"
+              onClick={async () => {
+                setConfirmPublishOpen(false);
+                await publish();
+              }}
+              disabled={saving}
+            >
+              {saving ? 'Publishing...' : 'Confirm & Publish'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog: Save Draft */}
+      <Dialog open={confirmDraftOpen} onOpenChange={setConfirmDraftOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save as Draft?</DialogTitle>
+            <DialogDescription>
+              Your changes will be saved as a draft. You can continue editing or publish it at any time.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 text-xs">
+            <p className="font-medium text-foreground">
+              {state.title || 'Untitled Draft'}
+            </p>
+            <p className="text-muted-foreground text-2xs mt-1">
+              Drafts are private to creators and administrators until published.
+            </p>
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmDraftOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={async () => {
+                setConfirmDraftOpen(false);
+                await persist(true);
+              }}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Confirm & Save Draft'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Version history */}
       {historyOpen && scenario && (
         <VersionHistoryDrawer
@@ -1185,9 +1357,11 @@ interface ResolutionStepItem {
 function ResolutionsStep({
   value,
   onChange,
+  playbookType = 'scenario',
 }: {
   value: string;
   onChange: (value: string) => void;
+  playbookType?: 'scenario' | 'documentation';
 }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [activeUploadIndex, setActiveUploadIndex] = React.useState<number | null>(null);
@@ -1283,7 +1457,11 @@ function ResolutionsStep({
         <CardContent className="space-y-3 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-semibold">Resolutions (Rich Text Mode)</h3>
+              <h3 className="text-xs font-semibold">
+                {playbookType === 'documentation'
+                  ? 'Documentation Content (Rich Text Mode)'
+                  : 'Resolutions (Rich Text Mode)'}
+              </h3>
               <p className="mt-0.5 text-2xs text-muted-foreground">
                 Free-form rich text editor.
               </p>
@@ -1320,9 +1498,15 @@ function ResolutionsStep({
 
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-xs font-semibold">Resolution Steps *</h3>
+            <h3 className="text-xs font-semibold">
+              {playbookType === 'documentation'
+                ? 'Step-by-Step Setup Guide'
+                : 'Resolution Steps'}
+            </h3>
             <p className="mt-0.5 text-2xs text-muted-foreground">
-              Add ordered troubleshooting steps with optional terminal commands and screenshot attachments. Checkable during live calls.
+              {playbookType === 'documentation'
+                ? 'Add ordered setup instructions, configuration steps, terminal commands, and screenshots.'
+                : 'Add ordered troubleshooting steps with optional terminal commands and screenshot attachments. Checkable during live calls.'}
             </p>
           </div>
           <div className="flex gap-2">
@@ -2017,6 +2201,7 @@ function ReviewStep({
   accounts,
   categories,
   checklist,
+  playbookType = 'scenario',
   onEditStep,
   onPublish,
 }: {
@@ -2026,54 +2211,58 @@ function ReviewStep({
   optionsByField: Record<string, CriteriaOption[]>;
   accounts: Account[];
   categories: Category[];
-  checklist: { key: string; label: string; done: boolean }[];
+  checklist: { key: string; label: string; done: boolean; required?: boolean }[];
+  playbookType?: 'scenario' | 'documentation';
   onEditStep: (index: number) => void;
   onPublish: () => void;
 }) {
-  const incomplete = checklist.filter((i) => !i.done);
+  const requiredMissing = checklist.filter((i) => i.required && !i.done);
+  const isDoc = playbookType === 'documentation';
 
   return (
     <div className="space-y-4">
-      {incomplete.length > 0 ? (
+      {requiredMissing.length > 0 ? (
         <Card className="border-amber-500/50 bg-amber-500/10">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>
                 <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                  Publishing Blocked: {incomplete.length} required item{incomplete.length === 1 ? ' is' : 's are'} missing
+                  Title Required Before Publishing
                 </p>
-                <ul className="mt-1.5 space-y-1">
-                  {incomplete.map((item) => (
-                    <li key={item.key} className="text-xs text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
-                      {item.label}
-                    </li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-2xs text-muted-foreground">
-                  The database trigger will reject publishing until all required items above are filled.
+                <p className="mt-1 text-xs text-amber-800 dark:text-amber-300">
+                  Please provide a title in the first step. Other sections are modular and optional.
                 </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2 h-7 text-2xs border-amber-600/30 text-amber-900 hover:bg-amber-500/20"
+                  onClick={() => onEditStep(0)}
+                >
+                  Go to Step 1 (Classification & Title)
+                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       ) : (
         <Card className="border-emerald-500/50 bg-emerald-500/10">
-          <CardContent className="p-4 flex items-center justify-between">
+          <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
-              <IconCheck className="h-5 w-5 text-emerald-600" />
+              <IconCheck className="h-5 w-5 text-emerald-600 shrink-0" />
               <div>
                 <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
                   Ready to Publish!
                 </p>
                 <p className="text-2xs text-muted-foreground">
-                  All required classification criteria, Quick Fix, and resolution steps are complete.
+                  {isDoc
+                    ? 'Your documentation guide is ready. Click below to review and publish to the knowledge base.'
+                    : 'Your playbook is ready. Click below to review and publish to the knowledge base.'}
                 </p>
               </div>
             </div>
-            <Button size="sm" className="h-8 font-semibold text-xs" onClick={onPublish}>
-              Publish Directly
+            <Button size="sm" className="h-8 font-semibold text-xs shrink-0" onClick={onPublish}>
+              Publish Playbook
             </Button>
           </CardContent>
         </Card>
@@ -2081,29 +2270,45 @@ function ReviewStep({
 
       <Card>
         <CardContent className="p-4 space-y-2">
-          <h3 className="text-xs font-semibold">Completeness Checklist</h3>
-          <ul className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-semibold">Completeness Overview (Modular)</h3>
+              <p className="text-2xs text-muted-foreground">
+                Only the title is required. Other sections are optional and can be updated anytime.
+              </p>
+            </div>
+          </div>
+          <ul className="space-y-1.5 pt-1">
             {checklist.map((item) => (
               <li key={item.key} className="flex items-center justify-between text-xs py-1 border-b last:border-b-0">
                 <span className="flex items-center gap-2">
                   <span
                     className={cn(
-                      'flex h-4 w-4 items-center justify-center rounded-full',
+                      'flex h-4 w-4 items-center justify-center rounded-full text-2xs',
                       item.done
                         ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-amber-500/15 text-amber-600',
+                        : item.required
+                        ? 'bg-amber-500/15 text-amber-600'
+                        : 'bg-muted text-muted-foreground',
                     )}
                   >
                     {item.done ? (
                       <IconCheck className="h-2.5 w-2.5" />
-                    ) : (
+                    ) : item.required ? (
                       <IconAlertCircle className="h-2.5 w-2.5" />
+                    ) : (
+                      <span className="h-1 w-1 rounded-full bg-muted-foreground/60" />
                     )}
                   </span>
-                  {item.label}
+                  <span className={cn(item.done ? 'text-foreground' : 'text-muted-foreground')}>
+                    {item.label}
+                  </span>
                 </span>
-                <Badge variant={item.done ? 'outline' : 'secondary'} className="h-4 text-[10px]">
-                  {item.done ? 'Completed' : 'Missing'}
+                <Badge
+                  variant={item.done ? 'outline' : item.required ? 'destructive' : 'secondary'}
+                  className="h-4 text-[10px]"
+                >
+                  {item.done ? 'Completed' : item.required ? 'Required (Empty)' : 'Optional'}
                 </Badge>
               </li>
             ))}
@@ -2113,7 +2318,7 @@ function ReviewStep({
 
       <Card>
         <CardContent className="p-4 space-y-2">
-          <h3 className="text-xs font-semibold">Classification Summary</h3>
+          <h3 className="text-xs font-semibold">Classification & Scope Summary</h3>
           <dl className="space-y-1.5 text-xs">
             {fields
               .filter(
@@ -2124,14 +2329,16 @@ function ReviewStep({
               .map((field) => {
                 let display = '—';
                 if (field.key === 'account') {
-                  if (state.is_global) {
-                    display = 'Global (All Accounts)';
-                  } else if (state.account_ids && state.account_ids.length > 0) {
+                  if (state.account_ids && state.account_ids.length > 0) {
                     const matched = accounts.filter((a) => state.account_ids.includes(a.id));
-                    display = matched.map((a) => `${a.name} (${a.code})`).join(', ');
-                  } else {
+                    display = matched.length > 0
+                      ? matched.map((a) => `${a.name} (${a.code})`).join(', ')
+                      : 'Specific accounts';
+                  } else if (classification.system.account) {
                     const acct = accounts.find((a) => a.id === classification.system.account);
-                    display = acct ? `${acct.name} (${acct.code})` : '—';
+                    display = acct ? `${acct.name} (${acct.code})` : 'General Knowledge Base';
+                  } else {
+                    display = 'General Knowledge Base (Not account-specific)';
                   }
                 } else if (field.key === 'category') {
                   const cat = categories.find((c) => c.id === classification.system.category);
