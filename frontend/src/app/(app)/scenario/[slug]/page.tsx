@@ -40,17 +40,25 @@ export default async function ScenarioPage({
     ),
   );
 
-  // Is this scenario favourited by the current user?
+  // Is this scenario favourited by the current user? Also record view history.
   let isFavorite = false;
-  if (user) {
+  if (user && bundle.scenario.id) {
     const supabase = createClient();
-    const { data } = await supabase
-      .from('pb_favorites')
-      .select('scenario_id')
-      .eq('user_id', user.id)
-      .eq('scenario_id', bundle.scenario.id)
-      .maybeSingle();
-    isFavorite = Boolean(data);
+    const [{ data: favData }] = await Promise.all([
+      supabase
+        .from('pb_favorites')
+        .select('scenario_id')
+        .eq('user_id', user.id)
+        .eq('scenario_id', bundle.scenario.id)
+        .maybeSingle(),
+      supabase
+        .from('pb_view_history')
+        .insert({
+          user_id: user.id,
+          scenario_id: bundle.scenario.id,
+        }),
+    ]);
+    isFavorite = Boolean(favData);
   }
 
   const canEdit =

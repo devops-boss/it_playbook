@@ -1356,8 +1356,15 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               type="button"
               size="sm"
               onClick={async () => {
-                setConfirmDraftOpen(false);
-                await persist(true);
+                setSaving(true);
+                const res = await persist(false, 'draft');
+                if (res && res.id) {
+                  toast.success('Draft saved successfully! Redirecting to My Drafts...');
+                  setConfirmDraftOpen(false);
+                  window.location.href = '/drafts';
+                } else {
+                  setSaving(false);
+                }
               }}
               disabled={saving}
             >

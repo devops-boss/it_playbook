@@ -203,7 +203,48 @@ export async function getRecentlyViewed(userId: string, limit = 10) {
   return data ?? [];
 }
 
-/** The user's favorite scenarios. */
+/** Full scenario objects the user has recently viewed, deduplicated and ordered by latest view. */
+export async function getRecentlyViewedScenarios(userId: string, limit = 24): Promise<Scenario[]> {
+  const supabase = createClient();
+  const { data: history, error: histError } = await supabase
+    .from('pb_view_history')
+    .select('scenario_id, viewed_at')
+    .eq('user_id', userId)
+    .order('viewed_at', { ascending: false })
+    .limit(limit * 3);
+
+  if (histError) throw toUpstreamError(histError);
+  if (!history || history.length === 0) return [];
+
+  const seen = new Set<string>();
+  const orderedIds: string[] = [];
+
+  for (const item of history) {
+    if (item.scenario_id && !seen.has(item.scenario_id)) {
+      seen.add(item.scenario_id);
+      orderedIds.push(item.scenario_id);
+      if (orderedIds.length >= limit) break;
+    }
+  }
+
+  if (orderedIds.length === 0) return [];
+
+  const { data: scenarios, error: scenError } = await supabase
+    .from('pb_scenarios')
+    .select('*')
+    .in('id', orderedIds)
+    .is('deleted_at', null);
+
+  if (scenError) throw toUpstreamError(scenError);
+  if (!scenarios) return [];
+
+  const scenMap = new Map(scenarios.map((s) => [s.id, s as Scenario]));
+  return orderedIds
+    .map((id) => scenMap.get(id))
+    .filter((s): s is Scenario => Boolean(s));
+}
+
+/** The user's favorite scenarios IDs and timestamps. */
 export async function getFavorites(userId: string) {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -213,6 +254,34 @@ export async function getFavorites(userId: string) {
     .order('created_at', { ascending: false });
   if (error) throw toUpstreamError(error);
   return data ?? [];
+}
+
+/** Full scenario objects the user has favorited, in order of favoriting. */
+export async function getFavoriteScenarios(userId: string): Promise<Scenario[]> {
+  const supabase = createClient();
+  const { data: favs, error: favError } = await supabase
+    .from('pb_favorites')
+    .select('scenario_id, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (favError) throw toUpstreamError(favError);
+  if (!favs || favs.length === 0) return [];
+
+  const scenarioIds = favs.map((f) => f.scenario_id);
+  const { data: scenarios, error: scenError } = await supabase
+    .from('pb_scenarios')
+    .select('*')
+    .in('id', scenarioIds)
+    .is('deleted_at', null);
+
+  if (scenError) throw toUpstreamError(scenError);
+  if (!scenarios) return [];
+
+  const scenMap = new Map(scenarios.map((s) => [s.id, s as Scenario]));
+  return scenarioIds
+    .map((id) => scenMap.get(id))
+    .filter((s): s is Scenario => Boolean(s));
 }
 
 /** Scenarios matching a criteria filter, used by Smart Playbooks. */

@@ -111,6 +111,23 @@ export function ScenarioReader({
     }
   }, []);
 
+  // Record view in pb_view_history for Recently Viewed list
+  React.useEffect(() => {
+    if (!userId || !scenario?.id) return;
+    const supabase = createClient();
+    supabase
+      .from('pb_view_history')
+      .insert({
+        user_id: userId,
+        scenario_id: scenario.id,
+      })
+      .then(({ error }) => {
+        if (error) {
+          console.debug('View history record note:', error.message);
+        }
+      });
+  }, [userId, scenario?.id]);
+
   const setMode = (newMode: ReadingMode) => {
     setModeState(newMode);
     try {
