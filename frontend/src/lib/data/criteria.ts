@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { throwOnFirstError, toUpstreamError } from '@/lib/api-error';
 import * as core from '@/lib/data/criteria-core';
 import type {
@@ -205,7 +206,7 @@ export async function getRecentlyViewed(userId: string, limit = 10) {
 
 /** Full scenario objects the user has recently viewed, deduplicated and ordered by latest view. */
 export async function getRecentlyViewedScenarios(userId: string, limit = 24): Promise<Scenario[]> {
-  const supabase = createClient();
+  const supabase = createAdminClient();
   const { data: history, error: histError } = await supabase
     .from('pb_view_history')
     .select('scenario_id, viewed_at')
@@ -246,7 +247,7 @@ export async function getRecentlyViewedScenarios(userId: string, limit = 24): Pr
 
 /** The user's favorite scenarios IDs and timestamps. */
 export async function getFavorites(userId: string) {
-  const supabase = createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase
     .from('pb_favorites')
     .select('scenario_id, created_at')
@@ -258,7 +259,7 @@ export async function getFavorites(userId: string) {
 
 /** Full scenario objects the user has favorited, in order of favoriting. */
 export async function getFavoriteScenarios(userId: string): Promise<Scenario[]> {
-  const supabase = createClient();
+  const supabase = createAdminClient();
   const { data: favs, error: favError } = await supabase
     .from('pb_favorites')
     .select('scenario_id, created_at')

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getAccounts, getCategories } from '@/lib/data/criteria';
 import { DraftsList, DraftItemData } from '@/components/scenarios/drafts-list';
 
@@ -14,7 +14,7 @@ export default async function MyDraftsPage() {
     user.isSuperAdmin ||
     user.permissions.global.has('edit_any_scenario');
 
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
   const [myDraftsRes, teamDraftsRes, accounts, categories] = await Promise.all([
     supabase

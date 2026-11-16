@@ -71,13 +71,15 @@ export function DraftsList({
     if (!draftToDelete) return;
     setIsDeleting(true);
     try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('pb_scenarios')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', draftToDelete.id);
-
-      if (error) throw error;
+      const res = await fetch('/api/scenarios/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: draftToDelete.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to remove draft');
+      }
 
       toast.success('Draft removed');
       setMyDrafts((prev) => prev.filter((d) => d.id !== draftToDelete.id));
@@ -316,3 +318,4 @@ export function DraftsList({
     </div>
   );
 }
+

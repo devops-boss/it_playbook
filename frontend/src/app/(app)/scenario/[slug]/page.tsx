@@ -5,7 +5,7 @@ import { getCurrentUser, can } from '@/lib/auth';
 import { getCriteriaFields, getOptionsForFields } from '@/lib/data/criteria';
 import { getScenarioBundle } from '@/lib/data/scenario';
 import { buildCriteriaLookup, resolveChips } from '@/lib/data/criteria-lookup';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +43,7 @@ export default async function ScenarioPage({
   // Is this scenario favourited by the current user? Also record view history.
   let isFavorite = false;
   if (user && bundle.scenario.id) {
-    const supabase = createClient();
+    const supabase = createAdminClient();
     const [{ data: favData }] = await Promise.all([
       supabase
         .from('pb_favorites')

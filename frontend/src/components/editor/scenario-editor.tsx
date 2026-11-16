@@ -499,94 +499,36 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       };
 
       try {
-        let scenarioId = scenario?.id;
-        let scenarioSlug = scenario?.slug;
+        const response = await fetch('/api/scenarios/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: scenario?.id,
+            payload,
+            account_ids: state.account_ids,
+            is_global: isGlobalEffective,
+            custom_criteria: classification.custom,
+            flowchart: flowchart.nodes.length > 0 ? flowchart : null,
+          }),
+        });
 
-        if (!scenarioId) {
-          const { data, error } = await supabase
-            .from('pb_scenarios')
-            .insert({
-              ...payload,
-              created_by: userId,
-              version: 1,
-            })
-            .select('id, slug')
-            .single();
-          if (error) throw error;
-          scenarioId = data.id;
-          scenarioSlug = data.slug;
-          if (showToast && targetStatus !== 'published') {
-            toast.success('Scenario draft created');
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to save scenario');
+        }
+
+        const scenarioId = data.id;
+        const scenarioSlug = data.slug;
+
+        if (showToast && targetStatus !== 'published') {
+          toast.success('Scenario draft created');
+          if (!scenario?.id) {
             router.push(`/scenarios/${data.id}/edit`);
           }
-        } else {
-          const { data, error } = await supabase
-            .from('pb_scenarios')
-            .update(payload)
-            .eq('id', scenarioId)
-            .select('id, slug')
-            .single();
-          if (error) throw error;
-          if (data?.slug) scenarioSlug = data.slug;
+        } else if (showToast) {
+          toast.success('Changes saved');
         }
 
-        // Sync multi-account relations (pb_scenario_accounts)
-        const { error: delAccError } = await supabase
-          .from('pb_scenario_accounts')
-          .delete()
-          .eq('scenario_id', scenarioId);
-        if (delAccError) throw delAccError;
-
-        if (!state.is_global && state.account_ids.length > 0) {
-          const accRows = state.account_ids.map((accId) => ({
-            scenario_id: scenarioId,
-            account_id: accId,
-          }));
-          const { error: insAccError } = await supabase
-            .from('pb_scenario_accounts')
-            .insert(accRows);
-          if (insAccError) throw insAccError;
-        }
-
-        // Custom criteria (EAV)
-        for (const [fieldId, values] of Object.entries(classification.custom)) {
-          const { error: deleteError } = await supabase
-            .from('pb_scenario_criteria_values')
-            .delete()
-            .eq('scenario_id', scenarioId)
-            .eq('field_id', fieldId);
-          if (deleteError) throw deleteError;
-
-          for (const value of values) {
-            const isOption = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-              value,
-            );
-            const { error: insertError } = await supabase
-              .from('pb_scenario_criteria_values')
-              .insert({
-                scenario_id: scenarioId,
-                field_id: fieldId,
-                option_id: isOption ? value : null,
-                value_text: isOption ? null : value,
-              });
-            if (insertError) throw insertError;
-          }
-        }
-
-        // Flowchart
-        if (flowchart.nodes.length > 0) {
-          const { error } = await supabase.from('pb_flowcharts').upsert(
-            {
-              scenario_id: scenarioId,
-              nodes: flowchart.nodes,
-              edges: flowchart.edges,
-            },
-            { onConflict: 'scenario_id' },
-          );
-          if (error) throw error;
-        }
-
-        if (showToast) toast.success('Changes saved');
         router.refresh();
         return { success: true, id: scenarioId, slug: scenarioSlug };
       } catch (err: any) {

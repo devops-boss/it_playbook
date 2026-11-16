@@ -113,20 +113,15 @@ export function ScenarioReader({
 
   // Record view in pb_view_history for Recently Viewed list
   React.useEffect(() => {
-    if (!userId || !scenario?.id) return;
-    const supabase = createClient();
-    supabase
-      .from('pb_view_history')
-      .insert({
-        user_id: userId,
-        scenario_id: scenario.id,
-      })
-      .then(({ error }) => {
-        if (error) {
-          console.debug('View history record note:', error.message);
-        }
-      });
-  }, [userId, scenario?.id]);
+    if (!scenario?.id) return;
+    fetch('/api/scenarios/view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario_id: scenario.id }),
+    }).catch((err) => {
+      console.debug('View history record note:', err);
+    });
+  }, [scenario?.id]);
 
   const setMode = (newMode: ReadingMode) => {
     setModeState(newMode);
@@ -179,24 +174,23 @@ export function ScenarioReader({
   }, [visibleSections]);
 
   const toggleFavorite = async () => {
-    const supabase = createClient();
     const next = !favorite;
     setFavorite(next);
     try {
-      const { error } = next
-        ? await supabase
-            .from('pb_favorites')
-            .insert({ user_id: userId, scenario_id: scenario.id })
-        : await supabase
-            .from('pb_favorites')
-            .delete()
-            .eq('user_id', userId)
-            .eq('scenario_id', scenario.id);
-      if (error) throw error;
-      toast.success(next ? 'Scenario added to favorites' : 'Removed from favorites');
-    } catch {
+      const res = await fetch('/api/scenarios/favorite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario_id: scenario.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Could not update favorites');
+      }
+      setFavorite(data.isFavorite);
+      toast.success(data.isFavorite ? 'Scenario added to favorites' : 'Removed from favorites');
+    } catch (err: any) {
       setFavorite(!next);
-      toast.error('Could not update your favourites.');
+      toast.error(err?.message || 'Could not update your favorites.');
     }
   };
 
