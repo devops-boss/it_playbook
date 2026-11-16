@@ -32,12 +32,15 @@ export interface ScenarioBundle {
 export async function getScenarioBundle(slug: string): Promise<ScenarioBundle | null> {
   const supabase = createClient();
 
-  const { data: scenario, error } = await supabase
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+  const query = supabase
     .from('pb_scenarios')
     .select('*')
-    .eq('slug', slug)
-    .is('deleted_at', null)
-    .maybeSingle();
+    .is('deleted_at', null);
+
+  const { data: scenario, error } = await (
+    isUuid ? query.or(`slug.eq.${slug},id.eq.${slug}`) : query.eq('slug', slug)
+  ).maybeSingle();
 
   if (error) throw toUpstreamError(error);
   if (!scenario) return null;

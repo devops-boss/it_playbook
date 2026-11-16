@@ -411,16 +411,76 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       const supabase = createClient();
 
       const targetStatus = overrideStatus ?? state.status;
-      const isGlobalEffective = state.is_global || (state.account_ids.length === 0 && !classification.system.account);
+      const isGlobalEffective =
+        playbookType === 'documentation'
+          ? true
+          : (state.is_global || (state.account_ids.length === 0 && !classification.system.account));
+
+      // Modular fallback values when publishing to satisfy DB constraints even on unmigrated instances
+      let quickFixValue = state.quick_fix?.trim() || null;
+      let resolutionsValue = state.resolutions?.trim() || null;
+      let categoryId = classification.system.category ?? null;
+      let issueTypeId = classification.system.issue_type ?? null;
+      let severityId = classification.system.severity ?? null;
+      let impactScopeId = classification.system.impact_scope ?? null;
+
+      if (targetStatus === 'published') {
+        if (!quickFixValue) {
+          quickFixValue =
+            playbookType === 'documentation'
+              ? 'Documentation & SOP standard procedure.'
+              : 'Standard troubleshooting procedure.';
+        }
+        if (!resolutionsValue || resolutionsValue === '[]') {
+          resolutionsValue = JSON.stringify([
+            {
+              step: 1,
+              instruction:
+                playbookType === 'documentation'
+                  ? 'Refer to documentation details and procedural guidelines.'
+                  : 'Refer to playbook steps and incident troubleshooting guidelines.',
+            },
+          ]);
+        }
+        // Fallbacks for criteria fields if unmigrated database trigger is still active
+        if (!categoryId && categories?.length > 0) {
+          const defaultCat =
+            categories.find((c) => c.slug === 'general' || c.name.toLowerCase().includes('general')) ||
+            categories[0];
+          categoryId = defaultCat.id;
+        }
+        if (!issueTypeId && fields) {
+          const f = fields.find((x) => x.key === 'issue_type');
+          if (f && optionsByField?.[f.id]?.length > 0) {
+            issueTypeId = optionsByField[f.id][0].id;
+          }
+        }
+        if (!severityId && fields) {
+          const f = fields.find((x) => x.key === 'severity');
+          if (f && optionsByField?.[f.id]?.length > 0) {
+            const defSev =
+              optionsByField[f.id].find(
+                (o) => o.value?.toLowerCase() === 'low' || o.value?.toLowerCase() === 'medium',
+              ) || optionsByField[f.id][0];
+            severityId = defSev.id;
+          }
+        }
+        if (!impactScopeId && fields) {
+          const f = fields.find((x) => x.key === 'impact_scope');
+          if (f && optionsByField?.[f.id]?.length > 0) {
+            impactScopeId = optionsByField[f.id][0].id;
+          }
+        }
+      }
 
       const payload: Record<string, unknown> = {
         title: state.title.trim(),
         summary: state.summary.trim() || null,
-        quick_fix: state.quick_fix || null,
+        quick_fix: quickFixValue,
         symptoms: state.symptoms || null,
         causes: state.causes || null,
         workarounds: state.workarounds || null,
-        resolutions: state.resolutions || null,
+        resolutions: resolutionsValue,
         escalation: state.escalation || null,
         prevention: state.prevention || null,
         custom_sections: {
@@ -431,10 +491,10 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         is_global: isGlobalEffective,
         tags: state.tags,
         account_id: isGlobalEffective ? null : (state.account_ids[0] ?? classification.system.account ?? null),
-        category_id: classification.system.category ?? null,
-        issue_type_id: classification.system.issue_type ?? null,
-        severity_id: classification.system.severity ?? null,
-        impact_scope_id: classification.system.impact_scope ?? null,
+        category_id: categoryId,
+        issue_type_id: issueTypeId,
+        severity_id: severityId,
+        impact_scope_id: impactScopeId,
         updated_by: userId,
       };
 
@@ -529,16 +589,21 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         if (showToast) toast.success('Changes saved');
         router.refresh();
         return { success: true, id: scenarioId, slug: scenarioSlug };
-      } catch (err) {
-        if (showToast) {
-          toast.error(err instanceof Error ? err.message : 'Could not save.');
+      } catch (err: any) {
+        console.error('Error saving scenario:', err);
+        const message =
+          err?.message ||
+          err?.error_description ||
+          (typeof err === 'string' ? err : 'Could not save.');
+        if (showToast || targetStatus === 'published') {
+          toast.error(message);
         }
         return false;
       } finally {
         setSaving(false);
       }
     },
-    [state, classification, flowchart, scenario, userId, router],
+    [state, classification, flowchart, scenario, userId, router, playbookType, categories, fields, optionsByField],
   );
 
   const publish = async () => {
@@ -547,17 +612,22 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       return;
     }
 
+    setSaving(true);
     setState((prev) => ({ ...prev, status: 'published' }));
 
     const res = await persist(false, 'published');
-    if (res && res.slug) {
-      toast.success(playbookType === 'documentation' ? 'Documentation published successfully!' : 'Playbook published successfully!');
-      router.push(`/scenario/${res.slug}`);
-      router.refresh();
-    } else if (res && res.id) {
-      toast.success(playbookType === 'documentation' ? 'Documentation published successfully!' : 'Playbook published successfully!');
-      router.push(`/scenario/${res.id}`);
-      router.refresh();
+    if (res && (res.slug || res.id)) {
+      const targetSlug = res.slug || res.id;
+      toast.success(
+        playbookType === 'documentation'
+          ? 'Documentation published successfully! Redirecting...'
+          : 'Playbook published successfully! Redirecting...',
+      );
+      setConfirmPublishOpen(false);
+      // Automatically redirect to the published scenario page
+      window.location.href = `/scenario/${targetSlug}`;
+    } else {
+      setSaving(false);
     }
   };
 
@@ -1227,6 +1297,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               variant="outline"
               size="sm"
               onClick={() => setConfirmPublishOpen(false)}
+              disabled={saving}
             >
               Cancel
             </Button>
@@ -1235,12 +1306,18 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               size="sm"
               className="bg-[#233B74] hover:bg-[#1b2e5c] text-white font-medium"
               onClick={async () => {
-                setConfirmPublishOpen(false);
                 await publish();
               }}
               disabled={saving}
             >
-              {saving ? 'Publishing...' : 'Confirm & Publish'}
+              {saving ? (
+                <>
+                  <IconLoader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Publishing...
+                </>
+              ) : (
+                'Confirm & Publish'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1271,6 +1348,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               variant="outline"
               size="sm"
               onClick={() => setConfirmDraftOpen(false)}
+              disabled={saving}
             >
               Cancel
             </Button>
@@ -1283,7 +1361,14 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
               }}
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Confirm & Save Draft'}
+              {saving ? (
+                <>
+                  <IconLoader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Confirm & Save Draft'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
