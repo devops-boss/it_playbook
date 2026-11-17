@@ -163,14 +163,10 @@ export function DraftsList({
               ? 'When you start drafting a playbook or documentation guide, it will be saved here until published.'
               : 'There are no drafts created by team members waiting for review.'
           }
-          action={
-            <Button asChild size="sm" className="h-8 gap-1.5 text-xs mt-2">
-              <Link href="/scenarios/new">
-                <IconPlus className="h-3.5 w-3.5" />
-                Create New Playbook
-              </Link>
-            </Button>
-          }
+          actionLabel="Create New Playbook"
+          onAction={() => {
+            window.location.href = '/scenarios/new';
+          }}
         />
       ) : (
         <div className="grid gap-3">

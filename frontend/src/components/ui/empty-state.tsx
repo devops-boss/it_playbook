@@ -9,6 +9,8 @@ export interface EmptyStateProps {
   icon?: React.ComponentType<{ className?: string }>;
   actionLabel?: string;
   onAction?: () => void;
+  action?: React.ReactNode;
+  children?: React.ReactNode;
   className?: string;
 }
 
@@ -18,6 +20,8 @@ export function EmptyState({
   icon: IconComponent = IconFolderOff,
   actionLabel,
   onAction,
+  action,
+  children,
   className,
 }: EmptyStateProps) {
   return (
@@ -36,7 +40,9 @@ export function EmptyState({
           {description}
         </p>
       )}
-      {actionLabel && onAction && (
+      {action && <div className="mt-4">{action}</div>}
+      {children && <div className="mt-4">{children}</div>}
+      {!action && !children && actionLabel && onAction && (
         <Button
           variant="outline"
           size="sm"
