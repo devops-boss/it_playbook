@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'A playbook title is required.' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = createClient();
     let scenarioId = scenarioIdParam;
     let scenarioSlug = '';
 
@@ -40,7 +40,10 @@ export async function POST(request: NextRequest) {
         .select('id, slug')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting scenario:', error);
+        throw error;
+      }
       scenarioId = data.id;
       scenarioSlug = data.slug;
     } else {
@@ -56,55 +59,79 @@ export async function POST(request: NextRequest) {
         .select('id, slug')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating scenario:', error);
+        throw error;
+      }
       if (data?.slug) scenarioSlug = data.slug;
     }
 
-    // Sync multi-account relations (pb_scenario_accounts)
-    await supabase.from('pb_scenario_accounts').delete().eq('scenario_id', scenarioId);
+    if (!scenarioSlug && scenarioId) {
+      const { data: scenData } = await supabase
+        .from('pb_scenarios')
+        .select('slug')
+        .eq('id', scenarioId)
+        .maybeSingle();
+      if (scenData?.slug) scenarioSlug = scenData.slug;
+    }
 
-    if (!is_global && Array.isArray(account_ids) && account_ids.length > 0) {
-      const accRows = account_ids.map((accId: string) => ({
-        scenario_id: scenarioId,
-        account_id: accId,
-      }));
-      await supabase.from('pb_scenario_accounts').insert(accRows);
+    // Sync multi-account relations (pb_scenario_accounts)
+    try {
+      await supabase.from('pb_scenario_accounts').delete().eq('scenario_id', scenarioId);
+
+      if (!is_global && Array.isArray(account_ids) && account_ids.length > 0) {
+        const accRows = account_ids.map((accId: string) => ({
+          scenario_id: scenarioId,
+          account_id: accId,
+        }));
+        await supabase.from('pb_scenario_accounts').insert(accRows);
+      }
+    } catch (accErr) {
+      console.warn('Non-fatal error syncing scenario accounts:', accErr);
     }
 
     // Sync custom criteria (pb_scenario_criteria_values)
-    if (custom_criteria && typeof custom_criteria === 'object') {
-      for (const [fieldId, values] of Object.entries(custom_criteria)) {
-        await supabase
-          .from('pb_scenario_criteria_values')
-          .delete()
-          .eq('scenario_id', scenarioId)
-          .eq('field_id', fieldId);
+    try {
+      if (custom_criteria && typeof custom_criteria === 'object') {
+        for (const [fieldId, values] of Object.entries(custom_criteria)) {
+          await supabase
+            .from('pb_scenario_criteria_values')
+            .delete()
+            .eq('scenario_id', scenarioId)
+            .eq('field_id', fieldId);
 
-        if (Array.isArray(values)) {
-          for (const value of values) {
-            const isOption =
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-            await supabase.from('pb_scenario_criteria_values').insert({
-              scenario_id: scenarioId,
-              field_id: fieldId,
-              option_id: isOption ? value : null,
-              value_text: isOption ? null : value,
-            });
+          if (Array.isArray(values)) {
+            for (const value of values) {
+              const isOption =
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+              await supabase.from('pb_scenario_criteria_values').insert({
+                scenario_id: scenarioId,
+                field_id: fieldId,
+                option_id: isOption ? value : null,
+                value_text: isOption ? null : value,
+              });
+            }
           }
         }
       }
+    } catch (critErr) {
+      console.warn('Non-fatal error syncing scenario criteria values:', critErr);
     }
 
     // Sync flowchart
-    if (flowchart && Array.isArray(flowchart.nodes) && flowchart.nodes.length > 0) {
-      await supabase.from('pb_flowcharts').upsert(
-        {
-          scenario_id: scenarioId,
-          nodes: flowchart.nodes,
-          edges: flowchart.edges ?? [],
-        },
-        { onConflict: 'scenario_id' },
-      );
+    try {
+      if (flowchart && Array.isArray(flowchart.nodes) && flowchart.nodes.length > 0) {
+        await supabase.from('pb_flowcharts').upsert(
+          {
+            scenario_id: scenarioId,
+            nodes: flowchart.nodes,
+            edges: flowchart.edges ?? [],
+          },
+          { onConflict: 'scenario_id' },
+        );
+      }
+    } catch (fcErr) {
+      console.warn('Non-fatal error syncing flowchart:', fcErr);
     }
 
     return NextResponse.json({

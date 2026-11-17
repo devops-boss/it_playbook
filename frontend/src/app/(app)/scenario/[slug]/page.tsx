@@ -5,7 +5,7 @@ import { getCurrentUser, can } from '@/lib/auth';
 import { getCriteriaFields, getOptionsForFields } from '@/lib/data/criteria';
 import { getScenarioBundle } from '@/lib/data/scenario';
 import { buildCriteriaLookup, resolveChips } from '@/lib/data/criteria-lookup';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,22 +43,27 @@ export default async function ScenarioPage({
   // Is this scenario favourited by the current user? Also record view history.
   let isFavorite = false;
   if (user && bundle.scenario.id) {
-    const supabase = createAdminClient();
-    const [{ data: favData }] = await Promise.all([
-      supabase
-        .from('pb_favorites')
-        .select('scenario_id')
-        .eq('user_id', user.id)
-        .eq('scenario_id', bundle.scenario.id)
-        .maybeSingle(),
-      supabase
-        .from('pb_view_history')
-        .insert({
-          user_id: user.id,
-          scenario_id: bundle.scenario.id,
-        }),
-    ]);
-    isFavorite = Boolean(favData);
+    try {
+      const supabase = createClient();
+      const [{ data: favData }] = await Promise.all([
+        supabase
+          .from('pb_favorites')
+          .select('scenario_id')
+          .eq('user_id', user.id)
+          .eq('scenario_id', bundle.scenario.id)
+          .maybeSingle(),
+        supabase
+          .from('pb_view_history')
+          .insert({
+            user_id: user.id,
+            scenario_id: bundle.scenario.id,
+            viewed_at: new Date().toISOString(),
+          }),
+      ]);
+      isFavorite = Boolean(favData);
+    } catch (err) {
+      console.debug('Note recording view history or checking favorite:', err);
+    }
   }
 
   const canEdit =

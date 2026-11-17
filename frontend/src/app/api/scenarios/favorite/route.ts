@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'scenario_id is required' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = createClient();
 
     // Check if already favorited
     const { data: existing, error: checkError } = await supabase
@@ -26,7 +26,10 @@ export async function POST(request: NextRequest) {
       .eq('scenario_id', scenarioId)
       .maybeSingle();
 
-    if (checkError) throw checkError;
+    if (checkError) {
+      console.error('Check favorite error:', checkError);
+      throw checkError;
+    }
 
     if (existing) {
       // Remove from favorites
@@ -36,7 +39,10 @@ export async function POST(request: NextRequest) {
         .eq('user_id', user.id)
         .eq('scenario_id', scenarioId);
 
-      if (delError) throw delError;
+      if (delError) {
+        console.error('Delete favorite error:', delError);
+        throw delError;
+      }
 
       return NextResponse.json({ success: true, isFavorite: false });
     } else {
@@ -49,7 +55,10 @@ export async function POST(request: NextRequest) {
           created_at: new Date().toISOString(),
         });
 
-      if (insError) throw insError;
+      if (insError) {
+        console.error('Insert favorite error:', insError);
+        throw insError;
+      }
 
       return NextResponse.json({ success: true, isFavorite: true });
     }

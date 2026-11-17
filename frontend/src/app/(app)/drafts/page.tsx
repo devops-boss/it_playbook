@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { getAccounts, getCategories } from '@/lib/data/criteria';
 import { DraftsList, DraftItemData } from '@/components/scenarios/drafts-list';
 
@@ -14,31 +14,45 @@ export default async function MyDraftsPage() {
     user.isSuperAdmin ||
     user.permissions.global.has('edit_any_scenario');
 
-  const supabase = createAdminClient();
+  let myDraftsRows: any[] = [];
+  let teamDraftsRows: any[] = [];
+  let accounts: any[] = [];
+  let categories: any[] = [];
 
-  const [myDraftsRes, teamDraftsRes, accounts, categories] = await Promise.all([
-    supabase
-      .from('pb_scenarios')
-      .select(
-        'id, title, slug, summary, quick_fix, status, updated_at, created_at, created_by, account_id, category_id, is_global, tags, custom_sections',
-      )
-      .eq('status', 'draft')
-      .eq('created_by', user.id)
-      .is('deleted_at', null)
-      .order('updated_at', { ascending: false }),
-    canSeeAllDrafts
-      ? supabase
-          .from('pb_scenarios')
-          .select(
-            'id, title, slug, summary, quick_fix, status, updated_at, created_at, created_by, account_id, category_id, is_global, tags, custom_sections',
-          )
-          .eq('status', 'draft')
-          .is('deleted_at', null)
-          .order('updated_at', { ascending: false })
-      : Promise.resolve({ data: [] }),
-    getAccounts(),
-    getCategories(),
-  ]);
+  try {
+    const supabase = createClient();
+
+    const [myDraftsRes, teamDraftsRes, accs, cats] = await Promise.all([
+      supabase
+        .from('pb_scenarios')
+        .select(
+          'id, title, slug, summary, quick_fix, status, updated_at, created_at, created_by, account_id, category_id, is_global, tags, custom_sections',
+        )
+        .eq('status', 'draft')
+        .eq('created_by', user.id)
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false }),
+      canSeeAllDrafts
+        ? supabase
+            .from('pb_scenarios')
+            .select(
+              'id, title, slug, summary, quick_fix, status, updated_at, created_at, created_by, account_id, category_id, is_global, tags, custom_sections',
+            )
+            .eq('status', 'draft')
+            .is('deleted_at', null)
+            .order('updated_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
+      getAccounts().catch(() => []),
+      getCategories().catch(() => []),
+    ]);
+
+    myDraftsRows = myDraftsRes.data ?? [];
+    teamDraftsRows = teamDraftsRes.data ?? [];
+    accounts = accs;
+    categories = cats;
+  } catch (err) {
+    console.error('Error fetching drafts data:', err);
+  }
 
   const accountMap = new Map(accounts.map((a) => [a.id, a.name]));
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
@@ -65,8 +79,8 @@ export default async function MyDraftsPage() {
     categoryName: row.category_id ? categoryMap.get(row.category_id) ?? null : null,
   });
 
-  const myDrafts: DraftItemData[] = (myDraftsRes.data ?? []).map(mapDraftItem);
-  const teamDrafts: DraftItemData[] = (teamDraftsRes.data ?? []).map(mapDraftItem);
+  const myDrafts: DraftItemData[] = myDraftsRows.map(mapDraftItem);
+  const teamDrafts: DraftItemData[] = teamDraftsRows.map(mapDraftItem);
 
   return (
     <div className="p-6">

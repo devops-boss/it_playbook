@@ -20,18 +20,38 @@ export default async function RecentlyViewedPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const [scenarios, fields, accounts] = await Promise.all([
-    getRecentlyViewedScenarios(user.id, 24),
-    getCriteriaFields('scenarios'),
-    getAccounts(),
-  ]);
+  let scenarios: any[] = [];
+  let fields: any[] = [];
+  let accounts: any[] = [];
+  let optionsByField: Record<string, any[]> = {};
+  let criteriaValues: Record<string, any[]> = {};
+  let metaMap: Record<string, any> = {};
 
-  const scenarioIds = scenarios.map((s) => s.id);
-  const [optionsByField, criteriaValues, metaMap] = await Promise.all([
-    getOptionsForFields(fields.map((f) => f.id)),
-    getCriteriaValuesForScenarios(scenarioIds),
-    getPlaybookMetaMap(scenarioIds),
-  ]);
+  try {
+    const [scens, flds, accs] = await Promise.all([
+      getRecentlyViewedScenarios(user.id, 24),
+      getCriteriaFields('scenarios').catch(() => []),
+      getAccounts().catch(() => []),
+    ]);
+
+    scenarios = scens;
+    fields = flds;
+    accounts = accs;
+
+    const scenarioIds = scenarios.map((s) => s.id);
+    if (scenarioIds.length > 0) {
+      const [opts, crits, metas] = await Promise.all([
+        getOptionsForFields(fields.map((f) => f.id)).catch(() => ({})),
+        getCriteriaValuesForScenarios(scenarioIds).catch(() => ({})),
+        getPlaybookMetaMap(scenarioIds).catch(() => ({})),
+      ]);
+      optionsByField = opts;
+      criteriaValues = crits;
+      metaMap = metas;
+    }
+  } catch (err) {
+    console.error('Error fetching recently viewed data:', err);
+  }
 
   const lookup = buildCriteriaLookup(fields, optionsByField);
   const accountMap = new Map(accounts.map((a) => [a.id, a.name]));

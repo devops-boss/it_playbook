@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,14 +16,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'scenario_id is required' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    const supabase = createClient();
     const { error } = await supabase.from('pb_view_history').insert({
       user_id: user.id,
       scenario_id: scenarioId,
       viewed_at: new Date().toISOString(),
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Record view error:', error);
+      throw error;
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
