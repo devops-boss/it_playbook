@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 export interface EmptyStateProps {
   title: string;
   description?: string;
-  icon?: React.ComponentType<{ className?: string }>;
+  icon?: any;
   actionLabel?: string;
   onAction?: () => void;
   action?: React.ReactNode;
