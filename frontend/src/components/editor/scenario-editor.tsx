@@ -12,6 +12,7 @@ import {
   IconCheck,
   IconCopy,
   IconDeviceFloppy,
+  IconDownload,
   IconEye,
   IconFlame,
   IconHistory,
@@ -1973,7 +1974,11 @@ function AttachmentsStep({
             const path = `${targetScenarioId}/${crypto.randomUUID()}-${file.name}`;
             const { error: storageError } = await supabase.storage
               .from('scenario-attachments')
-              .upload(path, file, { cacheControl: '3600', upsert: false });
+              .upload(path, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type || 'application/octet-stream',
+              });
 
             if (storageError) {
               errors.push(`${file.name}: ${storageError.message}`);
@@ -2023,13 +2028,55 @@ function AttachmentsStep({
     setUploadProgress(null);
   };
 
+  const handleDownload = async (attachment: any) => {
+    try {
+      const supabase = createClient();
+      const { data: signed } = await supabase.storage
+        .from('scenario-attachments')
+        .createSignedUrl(attachment.file_path, 3600);
+
+      let url = signed?.signedUrl;
+      if (url) {
+        if (url.includes('kong:8000')) {
+          url = url.replace(/https?:\/\/kong:8000/i, '');
+        }
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = attachment.file_name;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      // Fallback: direct blob download
+      const { data: blob, error: dlErr } = await supabase.storage
+        .from('scenario-attachments')
+        .download(attachment.file_path);
+
+      if (dlErr || !blob) throw dlErr || new Error('Could not download file');
+
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = attachment.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to download attachment');
+    }
+  };
+
   return (
     <Card>
       <CardContent className="space-y-4 p-4">
         <div>
           <h3 className="text-xs font-semibold">Attachments & SOP Files</h3>
           <p className="mt-0.5 text-2xs text-muted-foreground">
-            Multi-file upload supported. Store diagnostic scripts, logs, network traces, and SOP documents up to 100MB per file.
+            Multi-file upload supported. Store diagnostic scripts, logs, network traces, configuration files, and SOP documents up to 100MB per file.
           </p>
         </div>
 
@@ -2080,7 +2127,7 @@ function AttachmentsStep({
               : 'Click or drag files here to upload'}
           </p>
           <p className="mt-1 text-2xs text-muted-foreground">
-            Upload multiple files at once. Supports PNG, JPG, PDF, TXT, LOG, PCAP, MP4 (Max 100MB per file)
+            Upload multiple files at once. Supports all file types: PNG, JPG, PDF, TXT, LOG, CSV, PCAP, DOCX, XLSX, scripts, archives, and all formats (Max 100MB per file)
           </p>
         </div>
 
@@ -2091,36 +2138,55 @@ function AttachmentsStep({
               Uploaded Files ({files.length})
             </h4>
             <ul className="space-y-1.5 max-h-60 overflow-y-auto">
-              {files.map((attachment) => (
-                <li
-                  key={attachment.id}
-                  className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-xs hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <IconPaperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="truncate font-medium text-foreground">
-                      {attachment.file_name}
-                    </span>
-                    <span className="text-2xs text-muted-foreground shrink-0">
-                      ({formatSize(attachment.file_size)})
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive hover:bg-destructive/10 shrink-0 ml-2"
-                    onClick={async () => {
-                      const supabase = createClient();
-                      await supabase.from('pb_attachments').delete().eq('id', attachment.id);
-                      await supabase.storage.from('scenario-attachments').remove([attachment.file_path]);
-                      setFiles((prev) => prev.filter((f) => f.id !== attachment.id));
-                      toast.success('Attachment deleted');
-                    }}
+              {files.map((attachment) => {
+                const ext = attachment.file_name.split('.').pop()?.toUpperCase() || 'FILE';
+                return (
+                  <li
+                    key={attachment.id}
+                    className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-xs hover:border-primary/30 transition-colors"
                   >
-                    <IconTrash className="h-3.5 w-3.5" />
-                  </Button>
-                </li>
-              ))}
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Badge variant="outline" className="text-[10px] h-5 font-mono px-1.5 uppercase shrink-0 bg-muted/50">
+                        {ext}
+                      </Badge>
+                      <span className="truncate font-medium text-foreground">
+                        {attachment.file_name}
+                      </span>
+                      <span className="text-2xs text-muted-foreground shrink-0">
+                        ({formatSize(attachment.file_size)})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        title={`Download ${attachment.file_name}`}
+                        onClick={() => handleDownload(attachment)}
+                      >
+                        <IconDownload className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive hover:bg-destructive/10"
+                        title={`Delete ${attachment.file_name}`}
+                        onClick={async () => {
+                          const supabase = createClient();
+                          await supabase.from('pb_attachments').delete().eq('id', attachment.id);
+                          await supabase.storage.from('scenario-attachments').remove([attachment.file_path]);
+                          setFiles((prev) => prev.filter((f) => f.id !== attachment.id));
+                          toast.success('Attachment deleted');
+                        }}
+                      >
+                        <IconTrash className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

@@ -173,7 +173,11 @@ export async function getScenarioBundle(slug: string): Promise<ScenarioBundle | 
         const { data: signed } = await supabase.storage
           .from('scenario-attachments')
           .createSignedUrl(att.file_path, 3600);
-        return { ...att, signed_url: signed?.signedUrl ?? null };
+        let signedUrl = signed?.signedUrl ?? null;
+        if (signedUrl && signedUrl.includes('kong:8000')) {
+          signedUrl = signedUrl.replace(/https?:\/\/kong:8000/i, '');
+        }
+        return { ...att, signed_url: signedUrl };
       } catch {
         return { ...att, signed_url: null };
       }

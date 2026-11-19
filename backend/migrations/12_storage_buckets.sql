@@ -28,17 +28,10 @@
 INSERT INTO "storage"."buckets"
   (id, name, owner, owner_id, public, allowed_mime_types, file_size_limit)
 VALUES
-  ('scenario-attachments', 'scenario-attachments', NULL, NULL, FALSE, ARRAY[
-    'image/png',
-    'image/jpeg',
-    'image/gif',
-    'application/pdf',
-    'text/plain',
-    'application/zip',
-    'video/mp4',
-    'audio/mpeg'
-  ], 104857600)
-ON CONFLICT (id) DO UPDATE SET file_size_limit = 104857600;
+  ('scenario-attachments', 'scenario-attachments', NULL, NULL, FALSE, NULL, 104857600)
+ON CONFLICT (id) DO UPDATE SET
+  allowed_mime_types = NULL,
+  file_size_limit = 104857600;
 
 -- ---------------------------------------------------------------------------
 -- 2. Scenario access helpers.

@@ -1380,6 +1380,100 @@ function EscalationList({
 // ----------------------------------------------------------------------------
 // Attachments List with Signed URLs (Screen & Print Table)
 // ----------------------------------------------------------------------------
+function ReaderAttachmentRow({ attachment }: { attachment: Attachment }) {
+  const [downloading, setDownloading] = React.useState(false);
+
+  const handleDownload = async () => {
+    let url = attachment.signed_url;
+    if (url) {
+      if (url.includes('kong:8000')) {
+        url = url.replace(/https?:\/\/kong:8000/i, '');
+      }
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = attachment.file_name;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const supabase = createClient();
+      const { data: signed } = await supabase.storage
+        .from('scenario-attachments')
+        .createSignedUrl(attachment.file_path, 3600);
+
+      let signedUrl = signed?.signedUrl;
+      if (signedUrl) {
+        if (signedUrl.includes('kong:8000')) {
+          signedUrl = signedUrl.replace(/https?:\/\/kong:8000/i, '');
+        }
+        const a = document.createElement('a');
+        a.href = signedUrl;
+        a.download = attachment.file_name;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+
+      // Fallback: direct blob download
+      const { data: blob, error } = await supabase.storage
+        .from('scenario-attachments')
+        .download(attachment.file_path);
+
+      if (error || !blob) throw error || new Error('Download failed');
+
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = attachment.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not download attachment');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const ext = attachment.file_name.split('.').pop()?.toUpperCase() || 'FILE';
+
+  return (
+    <li className="flex items-center justify-between rounded-lg border bg-card p-2.5 text-xs hover:border-primary/40 transition-colors">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <Badge variant="outline" className="text-[10px] h-5 font-mono px-1.5 uppercase shrink-0 bg-muted/50">
+          {ext}
+        </Badge>
+        <span className="truncate font-medium text-foreground">{attachment.file_name}</span>
+      </div>
+      <div className="flex items-center gap-3 shrink-0 ml-3">
+        {attachment.file_size && (
+          <span className="text-2xs tabular-nums text-muted-foreground">
+            {formatBytes(attachment.file_size)}
+          </span>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="h-7 gap-1 px-2.5 text-[11px] font-medium hover:bg-primary hover:text-primary-foreground"
+        >
+          <IconDownload className="h-3.5 w-3.5" />
+          {downloading ? 'Downloading...' : 'Download'}
+        </Button>
+      </div>
+    </li>
+  );
+}
+
 function AttachmentsList({ attachments }: { attachments: Attachment[] }) {
   if (attachments.length === 0) {
     return <p className="text-xs text-muted-foreground">No attachments uploaded yet.</p>;
@@ -1390,31 +1484,7 @@ function AttachmentsList({ attachments }: { attachments: Attachment[] }) {
       {/* Screen Interactive List */}
       <ul className="space-y-1.5 print:hidden">
         {attachments.map((attachment) => (
-          <li
-            key={attachment.id}
-            className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-xs"
-          >
-            <span className="truncate font-medium">{attachment.file_name}</span>
-            <div className="flex items-center gap-3">
-              {attachment.file_size && (
-                <span className="text-2xs tabular-nums text-muted-foreground">
-                  {formatBytes(attachment.file_size)}
-                </span>
-              )}
-              {attachment.signed_url ? (
-                <a
-                  href={attachment.signed_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  download={attachment.file_name}
-                  className="inline-flex items-center gap-1 rounded bg-muted px-2 py-1 text-[10px] font-medium hover:bg-primary hover:text-primary-foreground"
-                >
-                  <IconDownload className="h-3 w-3" />
-                  Download
-                </a>
-              ) : null}
-            </div>
-          </li>
+          <ReaderAttachmentRow key={attachment.id} attachment={attachment} />
         ))}
       </ul>
 
