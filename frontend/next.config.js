@@ -13,6 +13,7 @@ const nextConfig = {
   },
   experimental: {
     optimizePackageImports: ['@tabler/icons-react'],
+    webpackBuildWorker: false,
   },
   // Assets are bundled locally; no external CDN at runtime.
   images: {

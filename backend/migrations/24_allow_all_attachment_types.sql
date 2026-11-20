@@ -40,3 +40,4 @@ USING (
   public.can_edit_scenario(public.attachment_scenario_id(name))
   OR name LIKE 'resolution-steps/%'
 );
+
