@@ -3,10 +3,22 @@
 # BOS Playbook - Staging / Production Deployment Script
 #
 # Usage:
-#   chmod +x ./scripts/deploy.sh
-#   ./scripts/deploy.sh
+#   sudo ./scripts/deploy.sh
 # ============================================================================
 set -e
+
+# Auto-elevate with sudo if docker socket requires permissions
+if [ "$EUID" -ne 0 ]; then
+  if ! docker info >/dev/null 2>&1; then
+    echo "Docker commands require elevated permissions. Elevating with sudo..."
+    exec sudo "$0" "$@"
+  fi
+fi
+
+# Add current user to docker group if run via sudo so future commands don't require sudo
+if [ -n "$SUDO_USER" ]; then
+  usermod -aG docker "$SUDO_USER" 2>/dev/null || true
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -21,18 +33,22 @@ if [ -f /proc/meminfo ]; then
   if [ "$SWAP_TOTAL" -lt 1048576 ]; then
     echo "Allocating 2GB swap space to ensure build completes without PuTTY abort..."
     if [ ! -f /swapfile ]; then
-      sudo fallocate -l 2G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null || true
-      sudo chmod 600 /swapfile 2>/dev/null || true
-      sudo mkswap /swapfile 2>/dev/null || true
+      fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048 2>/dev/null || true
+      chmod 600 /swapfile 2>/dev/null || true
+      mkswap /swapfile 2>/dev/null || true
     fi
-    sudo swapon /swapfile 2>/dev/null || true
+    swapon /swapfile 2>/dev/null || true
   fi
 fi
 
 echo "=========================================="
 echo " [1/5] Pulling latest code from GitHub..."
 echo "=========================================="
-git pull origin master || git pull origin main
+if [ -n "$SUDO_USER" ]; then
+  sudo -u "$SUDO_USER" git pull origin master || sudo -u "$SUDO_USER" git pull origin main || true
+else
+  git pull origin master || git pull origin main || true
+fi
 
 echo "=========================================="
 echo " [2/5] Cleaning stale build cache..."
@@ -40,8 +56,14 @@ echo "=========================================="
 docker builder prune -f --filter "until=2h" 2>/dev/null || true
 
 echo "=========================================="
-echo " [3/5] Applying database migrations..."
+echo " [3/5] Starting database & applying migrations..."
 echo "=========================================="
+docker compose up -d db
+echo "Waiting for database to be ready..."
+until docker compose exec -T db pg_isready -U postgres -h localhost >/dev/null 2>&1; do
+  sleep 2
+done
+
 if [ -f "./scripts/migrate.sh" ]; then
   bash ./scripts/migrate.sh || true
 fi
@@ -49,7 +71,7 @@ fi
 echo "=========================================="
 echo " [4/5] Building frontend container..."
 echo "=========================================="
-DOCKER_BUILDKIT=1 COMPOSE_BAKE=false docker compose build frontend
+docker compose build frontend
 
 echo "=========================================="
 echo " [5/5] Starting all services..."
