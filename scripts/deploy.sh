@@ -77,6 +77,7 @@ echo "=========================================="
 echo " [5/5] Starting all services..."
 echo "=========================================="
 docker compose up -d
+docker compose restart nginx
 
 echo ""
 echo "=========================================="

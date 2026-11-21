@@ -7,6 +7,14 @@
 -- are made modular and optional, allowing troubleshooting playbooks and documentation
 -- SOPs to be published with whatever sections are ready.
 
+DO $$
+BEGIN
+  DROP TRIGGER IF EXISTS trg_enforce_required_criteria ON pb_scenarios;
+  DROP FUNCTION IF EXISTS enforce_required_criteria() CASCADE;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
 CREATE OR REPLACE FUNCTION enforce_required_criteria()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -39,4 +47,12 @@ ALTER FUNCTION enforce_required_criteria() SET search_path = public, pg_temp;
 UPDATE pb_criteria_fields
 SET is_required = FALSE
 WHERE is_required = TRUE;
+
+-- Ensure trigger exists
+DROP TRIGGER IF EXISTS trg_enforce_required_criteria ON pb_scenarios;
+CREATE TRIGGER trg_enforce_required_criteria
+BEFORE INSERT OR UPDATE OF status ON pb_scenarios
+FOR EACH ROW
+EXECUTE FUNCTION enforce_required_criteria();
+
 
