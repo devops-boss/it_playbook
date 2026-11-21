@@ -145,6 +145,32 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const [step, setStep] = React.useState(0);
   const [saving, setSaving] = React.useState(false);
   const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const handleDelete = async () => {
+    if (!scenario?.id || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/scenarios/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: scenario.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to delete playbook');
+      }
+      toast.success('Playbook deleted successfully');
+      setShowDeleteModal(false);
+      router.push('/');
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting playbook');
+      setDeleting(false);
+    }
+  };
   const [flowchart, setFlowchart] = React.useState<{
     nodes: any[];
     edges: any[];
@@ -856,6 +882,17 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                   <IconArchive className="h-3.5 w-3.5" />
                   Archive
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1.5 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setShowDeleteModal(true)}
+                  title="Delete playbook"
+                >
+                  <IconTrash className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
               </>
             )}
 
@@ -989,7 +1026,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 scenarioId={scenario?.id ?? null}
                 tickets={tickets}
                 outcomes={outcomes}
-                onRequireSave={async () => Boolean(await persist(false))}
+                onRequireSave={async () => await persist(false)}
               />
             )}
 
@@ -1047,7 +1084,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
             {activeStep.key === 'attachments' && (
               <AttachmentsStep
                 scenarioId={scenario?.id ?? null}
-                onRequireSave={async () => Boolean(await persist(false))}
+                onRequireSave={async () => await persist(false)}
               />
             )}
 
@@ -1332,6 +1369,49 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           onRestored={() => router.refresh()}
         />
       )}
+
+      {/* Delete Playbook Confirmation Dialog */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <IconTrash className="h-5 w-5" />
+              Delete Playbook
+            </DialogTitle>
+            <DialogDescription className="text-xs pt-1">
+              Are you sure you want to delete this playbook? This action will permanently remove it from all active listings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border bg-muted/40 p-3 my-2 text-xs">
+            <div className="font-semibold text-foreground truncate">{state.title || scenario?.title || 'Untitled Playbook'}</div>
+            {scenario?.slug && (
+              <div className="text-muted-foreground mt-0.5 text-[11px]">
+                Slug: {scenario.slug}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={deleting}
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              {deleting ? 'Deleting…' : 'Yes, Delete Playbook'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1740,12 +1820,13 @@ function ResolutionsStep({
 function TicketsStep({
   scenarioId,
   tickets,
+  outcomes,
   onRequireSave,
 }: {
   scenarioId: string | null;
   tickets: SampleTicket[];
   outcomes?: Outcome[];
-  onRequireSave: () => Promise<boolean>;
+  onRequireSave: () => Promise<any>;
 }) {
   const [ticketId, setTicketId] = React.useState('');
   const [ticketList, setTicketList] = React.useState<SampleTicket[]>(tickets);
@@ -1779,6 +1860,11 @@ function TicketsStep({
       if (!saved) {
         setSaving(false);
         return;
+      }
+      if (typeof saved === 'string') {
+        targetScenarioId = saved;
+      } else if (typeof saved === 'object' && (saved as any)?.id) {
+        targetScenarioId = (saved as any).id;
       }
     }
 
@@ -1912,7 +1998,7 @@ function AttachmentsStep({
   onRequireSave,
 }: {
   scenarioId: string | null;
-  onRequireSave: () => Promise<boolean>;
+  onRequireSave: () => Promise<any>;
 }) {
   const [uploading, setUploading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState<{ current: number; total: number } | null>(null);
@@ -1954,8 +2040,14 @@ function AttachmentsStep({
         setUploadProgress(null);
         return;
       }
+      if (typeof saved === 'string') {
+        targetScenarioId = saved;
+      } else if (typeof saved === 'object' && (saved as any)?.id) {
+        targetScenarioId = (saved as any).id;
+      }
     }
 
+    const safeFolder = targetScenarioId || 'general';
     const supabase = createClient();
     let completed = 0;
     const newAttachments: any[] = [];
@@ -1971,7 +2063,7 @@ function AttachmentsStep({
       await Promise.all(
         chunk.map(async (file) => {
           try {
-            const path = `${targetScenarioId}/${crypto.randomUUID()}-${file.name}`;
+            const path = `${safeFolder}/${crypto.randomUUID()}-${file.name}`;
             const { error: storageError } = await supabase.storage
               .from('scenario-attachments')
               .upload(path, file, {
@@ -1985,22 +2077,24 @@ function AttachmentsStep({
               return;
             }
 
-            const { data: inserted, error: insertError } = await supabase
-              .from('pb_attachments')
-              .insert({
-                scenario_id: targetScenarioId,
-                file_name: file.name,
-                file_path: path,
-                file_size: file.size,
-                mime_type: file.type || 'application/octet-stream',
-              })
-              .select('*')
-              .single();
+            if (targetScenarioId) {
+              const { data: inserted, error: insertError } = await supabase
+                .from('pb_attachments')
+                .insert({
+                  scenario_id: targetScenarioId,
+                  file_name: file.name,
+                  file_path: path,
+                  file_size: file.size,
+                  mime_type: file.type || 'application/octet-stream',
+                })
+                .select('*')
+                .single();
 
-            if (insertError) {
-              errors.push(`${file.name}: ${insertError.message}`);
-            } else if (inserted) {
-              newAttachments.push(inserted);
+              if (insertError) {
+                errors.push(`${file.name}: ${insertError.message}`);
+              } else if (inserted) {
+                newAttachments.push(inserted);
+              }
             }
           } catch (err: any) {
             errors.push(`${file.name}: ${err?.message || 'Upload failed'}`);

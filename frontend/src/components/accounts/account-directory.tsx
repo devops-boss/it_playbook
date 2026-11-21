@@ -109,16 +109,25 @@ export function AccountDirectory({ accounts }: AccountDirectoryProps) {
                 href={`/accounts/${acc.account_code}`}
                 className="group block"
               >
-                <Card className="h-full rounded-xl border transition-all duration-200 hover:border-primary/50 hover:bg-accent/15 hover:shadow-xs">
+                <Card className={cn(
+                  "h-full rounded-xl border transition-all duration-200 hover:border-primary/50 hover:bg-accent/15 hover:shadow-xs",
+                  acc.account_code === 'GLOBAL' && "border-sky-500/40 bg-sky-500/5 hover:border-sky-500 hover:bg-sky-500/10"
+                )}>
                   <CardHeader className="p-4 pb-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-xs"
-                          style={{ backgroundColor: color }}
-                        >
-                          {acc.account_code.slice(0, 3).toUpperCase()}
-                        </span>
+                        {acc.account_code === 'GLOBAL' ? (
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-xs bg-sky-600">
+                            <IconWorld className="h-5 w-5" />
+                          </span>
+                        ) : (
+                          <span
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-xs"
+                            style={{ backgroundColor: color }}
+                          >
+                            {acc.account_code.slice(0, 3).toUpperCase()}
+                          </span>
+                        )}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <CardTitle className="truncate text-xs font-bold group-hover:text-primary transition-colors">
@@ -126,7 +135,10 @@ export function AccountDirectory({ accounts }: AccountDirectoryProps) {
                             </CardTitle>
                             <Badge
                               variant="outline"
-                              className="h-4 px-1 text-[9px] font-mono font-semibold"
+                              className={cn(
+                                "h-4 px-1 text-[9px] font-mono font-semibold",
+                                acc.account_code === 'GLOBAL' && "border-sky-500/40 text-sky-600 bg-sky-500/10"
+                              )}
                             >
                               {acc.account_code}
                             </Badge>

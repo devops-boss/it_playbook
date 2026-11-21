@@ -61,16 +61,22 @@ export function AccountPlaybook({
       <div className="border-b bg-card/40 px-6 py-5 shadow-xs">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <span
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold shadow-xs"
-              style={{
-                backgroundColor: `${account.accent_color ?? '#233B74'}20`,
-                color: account.accent_color ?? '#233B74',
-                border: `2px solid ${account.accent_color ?? '#233B74'}50`,
-              }}
-            >
-              {account.code.slice(0, 3).toUpperCase()}
-            </span>
+            {account.code === 'GLOBAL' ? (
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold shadow-xs bg-sky-500/20 text-sky-600 border-2 border-sky-500/50">
+                <IconWorld className="h-6 w-6" />
+              </span>
+            ) : (
+              <span
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-base font-bold shadow-xs"
+                style={{
+                  backgroundColor: `${account.accent_color ?? '#233B74'}20`,
+                  color: account.accent_color ?? '#233B74',
+                  border: `2px solid ${account.accent_color ?? '#233B74'}50`,
+                }}
+              >
+                {account.code.slice(0, 3).toUpperCase()}
+              </span>
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="truncate text-lg font-bold tracking-tight text-foreground">

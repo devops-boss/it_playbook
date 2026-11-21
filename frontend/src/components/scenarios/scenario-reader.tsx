@@ -26,10 +26,19 @@ import {
   IconShare,
   IconThumbDown,
   IconThumbUp,
+  IconTrash,
   IconUser,
   IconWorld,
   IconX,
 } from '@tabler/icons-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -98,6 +107,32 @@ export function ScenarioReader({
   const [zoomedImage, setZoomedImage] = React.useState<string | null>(null);
   const [completedSteps, setCompletedSteps] = React.useState<Set<number>>(new Set());
   const contentRef = React.useRef<HTMLDivElement>(null);
+
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const handleDelete = async () => {
+    if (!scenario?.id || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/scenarios/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: scenario.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to delete playbook');
+      }
+      toast.success('Playbook deleted successfully');
+      setShowDeleteModal(false);
+      router.push('/');
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting playbook');
+      setDeleting(false);
+    }
+  };
 
   // Restore saved reading mode preference from localStorage
   React.useEffect(() => {
@@ -527,6 +562,16 @@ export function ScenarioReader({
                     <IconHistory className="h-3.5 w-3.5" />
                     History
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1.5 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setShowDeleteModal(true)}
+                    title="Delete Playbook"
+                  >
+                    <IconTrash className="h-3.5 w-3.5" />
+                    Delete
+                  </Button>
                 </>
               )}
             </div>
@@ -811,6 +856,47 @@ export function ScenarioReader({
           </div>
         </div>
       )}
+
+      {/* Delete Playbook Confirmation Dialog */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <IconTrash className="h-5 w-5" />
+              Delete Playbook
+            </DialogTitle>
+            <DialogDescription className="text-xs pt-1">
+              Are you sure you want to delete this playbook? This action will permanently remove it from all listings.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border bg-muted/40 p-3 my-2 text-xs">
+            <div className="font-semibold text-foreground truncate">{scenario.title}</div>
+            <div className="text-muted-foreground mt-0.5 text-[11px]">
+              Slug: {scenario.slug}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={deleting}
+              onClick={() => setShowDeleteModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              {deleting ? 'Deleting…' : 'Yes, Delete Playbook'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
