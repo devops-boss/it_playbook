@@ -68,10 +68,16 @@ if [ -f "./scripts/migrate.sh" ]; then
   bash ./scripts/migrate.sh || true
 fi
 
+# Ensure docker-buildx plugin is present to avoid Bake timeouts
+if ! docker buildx version >/dev/null 2>&1; then
+  echo "Installing docker buildx plugin..."
+  apt-get update -qq && apt-get install -y -qq docker-buildx-plugin 2>/dev/null || true
+fi
+
 echo "=========================================="
 echo " [4/5] Building frontend container..."
 echo "=========================================="
-docker compose build frontend
+docker compose build frontend || DOCKER_BUILDKIT=0 docker compose build frontend
 
 echo "=========================================="
 echo " [5/5] Starting all services..."
