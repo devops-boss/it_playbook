@@ -12,7 +12,15 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizePackageImports: ['@tabler/icons-react'],
+    optimizePackageImports: [
+      '@tabler/icons-react',
+      'date-fns',
+      'lucide-react',
+      '@radix-ui/react-icons',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+    ],
     webpackBuildWorker: false,
   },
   // Assets are bundled locally; no external CDN at runtime.

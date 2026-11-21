@@ -142,7 +142,6 @@ services:
       resources:
         limits:
           memory: 256m
-          cpus: "0.5"
 
   # ---------------------------------------------------------------------------
   # The database API (PostgREST)
@@ -219,7 +218,6 @@ services:
       resources:
         limits:
           memory: 768m
-          cpus: "1.0"
 
   # ---------------------------------------------------------------------------
   # Storage
@@ -270,7 +268,6 @@ services:
       resources:
         limits:
           memory: 512m
-          cpus: "1.0"
 
   # ---------------------------------------------------------------------------
   # Image transformation
@@ -300,7 +297,6 @@ services:
       resources:
         limits:
           memory: 256m
-          cpus: "0.5"
 
   # ---------------------------------------------------------------------------
   # The metadata service
@@ -326,7 +322,6 @@ services:
       resources:
         limits:
           memory: 128m
-          cpus: "0.25"
 
   # ---------------------------------------------------------------------------
   # Studio
@@ -384,7 +379,6 @@ services:
       resources:
         limits:
           memory: 768m
-          cpus: "1.0"
 
   # ---------------------------------------------------------------------------
   # The API gateway
@@ -437,7 +431,6 @@ services:
       resources:
         limits:
           memory: 512m
-          cpus: "0.5"
 
   # ---------------------------------------------------------------------------
   # The application
@@ -542,7 +535,6 @@ services:
       resources:
         limits:
           memory: 128m
-          cpus: "0.5"
 
 networks:
   bos-network:
