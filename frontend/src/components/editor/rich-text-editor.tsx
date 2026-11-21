@@ -117,8 +117,12 @@ export function RichTextEditor({
           .from(bucket)
           .createSignedUrl(path, 60 * 60 * 24 * 365);
 
-        const imageUrl =
+        let imageUrl =
           signedData?.signedUrl || supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+
+        if (imageUrl.includes('kong:8000')) {
+          imageUrl = imageUrl.replace(/https?:\/\/kong:8000/i, '');
+        }
 
         editor?.chain().focus().setImage({ src: imageUrl }).run();
         toast.success('Image uploaded');

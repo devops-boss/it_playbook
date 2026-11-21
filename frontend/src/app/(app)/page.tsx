@@ -6,6 +6,7 @@ import {
   getCriteriaFields,
   getCriteriaValuesForScenarios,
   getDocumentationPlaybooks,
+  getGlobalScenariosCount,
   getOptionsForFields,
   getPlaybookMetaMap,
   searchScenarios,
@@ -51,15 +52,21 @@ export default async function HomePage() {
     .filter((r) => !metaMap[r.id]?.isDocumentation)
     .slice(0, 6);
 
-  // Count scenarios per account for the account tiles.
+  // Count scenarios per account (strictly account-specific, excluding global scenarios).
   const accountCounts: Record<string, number> = {};
-  for (const account of accounts) {
-    const { total } = await searchScenarios({
-      accountIds: [account.id],
-      pageSize: 1,
-    });
-    accountCounts[account.id] = total;
-  }
+  await Promise.all([
+    ...accounts.map(async (account) => {
+      const { total } = await searchScenarios({
+        accountIds: [account.id],
+        accountMatch: 'only',
+        pageSize: 1,
+      });
+      accountCounts[account.id] = total;
+    }),
+    (async () => {
+      accountCounts['GLOBAL'] = await getGlobalScenariosCount();
+    })(),
+  ]);
 
   return (
     <HomeDashboard

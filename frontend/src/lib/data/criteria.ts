@@ -362,3 +362,26 @@ export async function logSearch(
     filters: filters ?? {},
   });
 }
+
+/** Get exact count of published global scenarios. */
+export async function getGlobalScenariosCount(): Promise<number> {
+  try {
+    const supabase = createClient();
+    const { count, error } = await supabase
+      .from('pb_scenarios')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_global', true)
+      .eq('status', 'published')
+      .is('deleted_at', null);
+
+    if (error) {
+      console.error('Error fetching global scenarios count:', error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (err) {
+    console.error('Failed to get global scenarios count:', err);
+    return 0;
+  }
+}
+

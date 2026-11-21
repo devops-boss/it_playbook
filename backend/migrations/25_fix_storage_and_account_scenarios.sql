@@ -207,3 +207,4 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION get_account_playbook(UUID, TEXT) TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION get_all_account_metrics() TO authenticated, anon, service_role;
+

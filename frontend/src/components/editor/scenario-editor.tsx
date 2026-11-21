@@ -145,18 +145,22 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const [step, setStep] = React.useState(0);
   const [saving, setSaving] = React.useState(false);
   const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+  const [currentScenarioId, setCurrentScenarioId] = React.useState<string | null>(scenario?.id ?? null);
+  const [currentScenarioSlug, setCurrentScenarioSlug] = React.useState<string | null>(scenario?.slug ?? null);
 
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
+  const targetScenarioIdForDelete = currentScenarioId || scenario?.id;
+
   const handleDelete = async () => {
-    if (!scenario?.id || deleting) return;
+    if (!targetScenarioIdForDelete || deleting) return;
     setDeleting(true);
     try {
       const res = await fetch('/api/scenarios/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: scenario.id }),
+        body: JSON.stringify({ id: targetScenarioIdForDelete }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -428,6 +432,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     async (
       showToast = true,
       overrideStatus?: Scenario['status'],
+      options?: { silent?: boolean; navigateOnCreate?: boolean }
     ): Promise<{ success: boolean; id?: string; slug?: string } | false> => {
       if (!state.title.trim()) {
         if (showToast) toast.error('A scenario title is required.');
@@ -500,6 +505,8 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         }
       }
 
+      const effectiveId = currentScenarioId || scenario?.id;
+
       const payload: Record<string, unknown> = {
         title: state.title.trim(),
         summary: state.summary.trim() || null,
@@ -530,7 +537,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            id: scenario?.id,
+            id: effectiveId,
             payload,
             account_ids: state.account_ids,
             is_global: isGlobalEffective,
@@ -547,16 +554,27 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         const scenarioId = data.id;
         const scenarioSlug = data.slug;
 
+        setCurrentScenarioId(scenarioId);
+        if (scenarioSlug) {
+          setCurrentScenarioSlug(scenarioSlug);
+        }
+
+        if (!scenario?.id && scenarioSlug && typeof window !== 'undefined') {
+          window.history.replaceState(null, '', `/scenarios/${scenarioSlug}/edit`);
+        }
+
         if (showToast && targetStatus !== 'published') {
           toast.success('Scenario draft created');
-          if (!scenario?.id) {
+          if (options?.navigateOnCreate && !scenario?.id) {
             router.push(`/scenarios/${data.id}/edit`);
           }
         } else if (showToast) {
           toast.success('Changes saved');
         }
 
-        router.refresh();
+        if (!options?.silent) {
+          router.refresh();
+        }
         return { success: true, id: scenarioId, slug: scenarioSlug };
       } catch (err: any) {
         console.error('Error saving scenario:', err);
@@ -572,7 +590,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         setSaving(false);
       }
     },
-    [state, classification, flowchart, scenario, userId, router, playbookType, categories, fields, optionsByField],
+    [state, classification, flowchart, scenario, currentScenarioId, userId, router, playbookType, categories, fields, optionsByField],
   );
 
   const publish = async () => {
@@ -1023,10 +1041,13 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
             {activeStep.key === 'tickets' && (
               <TicketsStep
-                scenarioId={scenario?.id ?? null}
+                scenarioId={currentScenarioId || scenario?.id || null}
                 tickets={tickets}
                 outcomes={outcomes}
-                onRequireSave={async () => await persist(false)}
+                onRequireSave={async () => {
+                  const res = await persist(false, undefined, { silent: true });
+                  return res ? (res.id || currentScenarioId) : null;
+                }}
               />
             )}
 
@@ -1083,14 +1104,17 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
             {activeStep.key === 'attachments' && (
               <AttachmentsStep
-                scenarioId={scenario?.id ?? null}
-                onRequireSave={async () => await persist(false)}
+                scenarioId={currentScenarioId || scenario?.id || null}
+                onRequireSave={async () => {
+                  const res = await persist(false, undefined, { silent: true });
+                  return res ? (res.id || currentScenarioId) : null;
+                }}
               />
             )}
 
             {activeStep.key === 'related' && (
               <RelatedScenariosStep
-                scenarioId={scenario?.id ?? null}
+                scenarioId={currentScenarioId || scenario?.id || null}
                 allScenarios={allScenarios}
                 playbookType={playbookType}
               />
@@ -2000,6 +2024,7 @@ function AttachmentsStep({
   scenarioId: string | null;
   onRequireSave: () => Promise<any>;
 }) {
+  const [activeScenarioId, setActiveScenarioId] = React.useState<string | null>(scenarioId);
   const [uploading, setUploading] = React.useState(false);
   const [uploadProgress, setUploadProgress] = React.useState<{ current: number; total: number } | null>(null);
   const [files, setFiles] = React.useState<any[]>([]);
@@ -2007,15 +2032,20 @@ function AttachmentsStep({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
-    if (!scenarioId) return;
+    if (scenarioId) setActiveScenarioId(scenarioId);
+  }, [scenarioId]);
+
+  React.useEffect(() => {
+    const idToFetch = activeScenarioId || scenarioId;
+    if (!idToFetch) return;
     const supabase = createClient();
     supabase
       .from('pb_attachments')
       .select('*')
-      .eq('scenario_id', scenarioId)
+      .eq('scenario_id', idToFetch)
       .order('created_at', { ascending: false })
       .then(({ data }) => setFiles(data ?? []));
-  }, [scenarioId]);
+  }, [activeScenarioId, scenarioId]);
 
   const formatSize = (bytes: number) => {
     if (!bytes || bytes === 0) return '0 B';
@@ -2031,7 +2061,7 @@ function AttachmentsStep({
 
     setUploading(true);
     setUploadProgress({ current: 0, total: fileList.length });
-    let targetScenarioId = scenarioId;
+    let targetScenarioId = activeScenarioId || scenarioId;
 
     if (!targetScenarioId) {
       const saved = await onRequireSave();
@@ -2044,6 +2074,9 @@ function AttachmentsStep({
         targetScenarioId = saved;
       } else if (typeof saved === 'object' && (saved as any)?.id) {
         targetScenarioId = (saved as any).id;
+      }
+      if (targetScenarioId) {
+        setActiveScenarioId(targetScenarioId);
       }
     }
 

@@ -16,6 +16,7 @@ import {
   IconPlus,
   IconSearch,
   IconSparkles,
+  IconWorld,
   IconX,
 } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
@@ -159,8 +160,25 @@ export function HomeDashboard({
   );
 
   // Filtered and sorted accounts for the organizer
+  const globalCount = accountCounts['GLOBAL'] ?? 0;
+
+  const showGlobalCard = React.useMemo(() => {
+    if (accountFilter === 'has_playbooks' && globalCount === 0) return false;
+    if (accountSearch.trim()) {
+      const q = accountSearch.toLowerCase().trim();
+      return (
+        'global scenarios'.includes(q) ||
+        'global'.includes(q) ||
+        'universal'.includes(q) ||
+        'standard operating procedures'.includes(q) ||
+        'sop'.includes(q)
+      );
+    }
+    return true;
+  }, [accountFilter, accountSearch, globalCount]);
+
   const filteredAccounts = React.useMemo(() => {
-    let list = [...accounts];
+    let list = accounts.filter((a) => !a.is_global && a.code !== 'GLOBAL');
 
     if (accountFilter === 'has_playbooks') {
       list = list.filter((a) => (accountCounts[a.id] ?? 0) > 0);
@@ -195,12 +213,12 @@ export function HomeDashboard({
   }, [accounts, accountCounts, accountFilter, accountSearch, accountSort]);
 
   const activeCount = React.useMemo(
-    () => accounts.filter((a) => a.status === 'Active').length,
+    () => accounts.filter((a) => a.status === 'Active' && !a.is_global && a.code !== 'GLOBAL').length,
     [accounts],
   );
 
   const withPlaybooksCount = React.useMemo(
-    () => accounts.filter((a) => (accountCounts[a.id] ?? 0) > 0).length,
+    () => accounts.filter((a) => (accountCounts[a.id] ?? 0) > 0 && !a.is_global && a.code !== 'GLOBAL').length,
     [accounts, accountCounts],
   );
 
@@ -293,11 +311,11 @@ export function HomeDashboard({
                   Client Accounts Organizer
                 </h2>
                 <Badge variant="secondary" className="h-5 px-2 text-[10px] font-mono">
-                  {filteredAccounts.length} / {accounts.length}
+                  {filteredAccounts.length + (showGlobalCard ? 1 : 0)} / {accounts.length + 1}
                 </Badge>
               </div>
               <p className="mt-0.5 text-2xs text-muted-foreground">
-                Filter and browse client-specific runbooks and procedures.
+                Universal global SOPs and client-specific runbooks.
               </p>
             </div>
 
@@ -324,7 +342,7 @@ export function HomeDashboard({
                     : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
-                All ({accounts.length})
+                All ({accounts.length + 1})
               </button>
               <button
                 type="button"
@@ -335,7 +353,7 @@ export function HomeDashboard({
                     : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
-                With Playbooks ({withPlaybooksCount})
+                With Playbooks ({withPlaybooksCount + (globalCount > 0 ? 1 : 0)})
               </button>
               <button
                 type="button"
@@ -346,7 +364,7 @@ export function HomeDashboard({
                     : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
-                Active ({activeCount})
+                Active ({activeCount + 1})
               </button>
             </div>
 
@@ -385,7 +403,7 @@ export function HomeDashboard({
           </div>
 
           {/* Accounts Grid */}
-          {displayedAccounts.length === 0 ? (
+          {displayedAccounts.length === 0 && !showGlobalCard ? (
             <div className="my-6 rounded-xl border border-dashed p-6 text-center">
               <p className="text-xs font-medium text-foreground">No accounts found</p>
               <p className="mt-1 text-2xs text-muted-foreground">
@@ -406,6 +424,40 @@ export function HomeDashboard({
           ) : (
             <>
               <div className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                {/* 1. Global Scenarios: Positioned FIRST inside the organizer */}
+                {showGlobalCard && (
+                  <Link
+                    href="/accounts/GLOBAL"
+                    className="group flex items-center gap-3 rounded-xl border border-sky-500/40 bg-sky-500/5 p-3 shadow-2xs card-hover hover:border-sky-500 hover:bg-sky-500/10 transition-all"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white shadow-2xs bg-sky-600">
+                      <IconWorld className="h-5 w-5" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                          Global Scenarios
+                        </span>
+                        <Badge variant="outline" className="h-4 px-1 text-[9px] font-mono font-semibold border-sky-500/40 text-sky-600 bg-sky-500/10">
+                          GLOBAL
+                        </Badge>
+                        <Badge variant="default" className="h-4 px-1.5 text-[9px] font-semibold bg-sky-600 text-white">
+                          Universal
+                        </Badge>
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1.5 text-2xs text-muted-foreground">
+                        <span className={cn('font-medium', globalCount > 0 ? 'text-sky-600 font-semibold' : 'text-muted-foreground/60')}>
+                          {globalCount} {globalCount === 1 ? 'playbook' : 'playbooks'}
+                        </span>
+                        <span>&bull;</span>
+                        <span className="truncate">Universal / Org-wide</span>
+                      </span>
+                    </span>
+                    <IconArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-sky-600" />
+                  </Link>
+                )}
+
+                {/* 2. Client Accounts: Positioned after Global Scenarios in alphabetical/sorted order */}
                 {displayedAccounts.map((account) => {
                   const count = accountCounts[account.id] ?? 0;
                   const isScoped = selectedAccountIds.includes(account.id);
@@ -447,12 +499,6 @@ export function HomeDashboard({
                           <span className={cn('font-medium', count > 0 ? 'text-primary' : 'text-muted-foreground/60')}>
                             {count} {count === 1 ? 'playbook' : 'playbooks'}
                           </span>
-                          {account.is_global && (
-                            <>
-                              <span>&bull;</span>
-                              <span>Global</span>
-                            </>
-                          )}
                         </span>
                       </span>
                       <IconArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50 transition-all group-hover:translate-x-0.5 group-hover:text-primary" />
