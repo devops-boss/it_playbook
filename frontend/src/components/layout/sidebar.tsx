@@ -24,10 +24,12 @@ interface SidebarProps {
   accounts?: Account[];
   categories: Category[];
   user: {
+    id?: string;
     isSuperAdmin: boolean;
     roleNames: string[];
     permissions: string[];
   };
+  draftsCount?: number;
 }
 
 interface NavItem {
@@ -44,11 +46,16 @@ const MAIN_NAV: NavItem[] = [
   { href: '/drafts', label: 'My Drafts', icon: IconFileText },
 ];
 
-export function Sidebar({ accounts = [], categories, user }: SidebarProps) {
+export function Sidebar({ accounts = [], categories, user, draftsCount = 0 }: SidebarProps) {
   const pathname = usePathname();
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const [accountsOpen, setAccountsOpen] = React.useState(true);
+  const [liveDraftsCount, setLiveDraftsCount] = React.useState(draftsCount);
+
+  React.useEffect(() => {
+    setLiveDraftsCount(draftsCount);
+  }, [draftsCount]);
 
   const sortedAccounts = React.useMemo(
     () => [...accounts].sort((a, b) => a.name.localeCompare(b.name)),
@@ -87,23 +94,45 @@ export function Sidebar({ accounts = [], categories, user }: SidebarProps) {
 
         {/* Main Navigation */}
         <ul className="space-y-0.5">
-          {MAIN_NAV.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
-                  isActive(item)
-                    ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </Link>
-            </li>
-          ))}
+          {MAIN_NAV.map((item) => {
+            const isDrafts = item.href === '/drafts';
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    'group flex items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+                    isActive(item)
+                      ? 'bg-primary/10 text-primary font-semibold'
+                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  )}
+                  title={
+                    collapsed
+                      ? isDrafts && liveDraftsCount > 0
+                        ? `${item.label} (${liveDraftsCount})`
+                        : item.label
+                      : undefined
+                  }
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="relative flex items-center justify-center">
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {collapsed && isDrafts && liveDraftsCount > 0 && (
+                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-background" />
+                      )}
+                    </div>
+                    {!collapsed && <span className="truncate">{item.label}</span>}
+                  </div>
+
+                  {!collapsed && isDrafts && liveDraftsCount > 0 && (
+                    <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500 tabular-nums leading-none">
+                      {liveDraftsCount}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
 
         {/* Accounts List (Data-driven from pb_accounts) */}

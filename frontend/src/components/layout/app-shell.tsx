@@ -15,6 +15,7 @@ interface AppShellProps {
   accounts: Account[];
   categories: Category[];
   criteriaFields: CriteriaField[];
+  draftsCount?: number;
   user: {
     id: string;
     displayName: string;
@@ -31,6 +32,7 @@ export function AppShell({
   accounts,
   categories,
   criteriaFields,
+  draftsCount = 0,
   user,
 }: AppShellProps) {
   const setAccounts = useAppStore((s) => s.setAccounts);
@@ -62,7 +64,7 @@ export function AppShell({
         onOpenPalette={() => setPaletteOpen(true)}
       />
       <div className="flex min-h-0 flex-1">
-        <Sidebar accounts={accounts} categories={categories} user={user} />
+        <Sidebar accounts={accounts} categories={categories} user={user} draftsCount={draftsCount} />
         <main
           className="min-w-0 flex-1 print:w-full print:max-w-none print:p-0 print:m-0"
           data-pathname={pathname}
