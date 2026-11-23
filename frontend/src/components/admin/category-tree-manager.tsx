@@ -67,6 +67,7 @@ export function CategoryTreeManager({ categories }: CategoryTreeManagerProps) {
   const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [editing, setEditing] = React.useState<Category | null>(null);
   const [creatingUnder, setCreatingUnder] = React.useState<Category | null>(null);
+  const [isCreatingRoot, setIsCreatingRoot] = React.useState(false);
   const [mergeSource, setMergeSource] = React.useState<Category | null>(null);
   const [mergeTargetId, setMergeTargetId] = React.useState('');
   const [impact, setImpact] = React.useState<{
@@ -322,13 +323,27 @@ export function CategoryTreeManager({ categories }: CategoryTreeManagerProps) {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
-      <div className="mb-5">
-        <h1 className="text-base font-semibold tracking-tight">Categories</h1>
-        <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
-          The category tree drives the sidebar, the category pages and the default
-          coverage-matrix axis. Drag a category onto another to nest it; its slug
-          stays stable so links keep working after a rename.
-        </p>
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-base font-semibold tracking-tight">Categories</h1>
+          <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">
+            The category tree drives the sidebar, the category pages and the default
+            coverage-matrix axis. Drag a category onto another to nest it; its slug
+            stays stable so links keep working after a rename.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => {
+            setEditing(null);
+            setCreatingUnder(null);
+            setIsCreatingRoot(true);
+          }}
+          className="gap-1.5 self-start sm:self-auto shrink-0 bg-[#233B74] text-white hover:bg-[#233B74]/90"
+        >
+          <IconPlus className="h-4 w-4" />
+          Add Category
+        </Button>
       </div>
 
       <DndContext
@@ -355,12 +370,13 @@ export function CategoryTreeManager({ categories }: CategoryTreeManagerProps) {
       </DndContext>
 
       <CategoryDialog
-        open={editing !== null || creatingUnder !== null}
+        open={editing !== null || creatingUnder !== null || isCreatingRoot}
         category={editing}
         parentId={creatingUnder?.id ?? null}
         onClose={() => {
           setEditing(null);
           setCreatingUnder(null);
+          setIsCreatingRoot(false);
         }}
         onSaved={() => router.refresh()}
       />

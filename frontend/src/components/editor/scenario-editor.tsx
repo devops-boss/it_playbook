@@ -132,14 +132,19 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     initialTitle = null,
   } = props;
 
+  const isGlobalInitial =
+    initialAccountId === '00000000-0000-0000-0000-000000000000' ||
+    initialAccountId?.toUpperCase() === 'GLOBAL';
+
   const [state, setState] = React.useState<EditorState>(() => ({
     ...EMPTY_STATE,
     title: initialTitle ?? '',
-    account_ids: initialAccountId ? [initialAccountId] : [],
+    is_global: isGlobalInitial,
+    account_ids: isGlobalInitial || !initialAccountId ? [] : [initialAccountId],
   }));
   const [classification, setClassification] = React.useState<ClassificationValue>(() => ({
     system: {
-      account: initialAccountId ?? null,
+      account: isGlobalInitial || !initialAccountId ? null : initialAccountId,
       category: initialCategoryId ?? null,
     },
     custom: {},
@@ -260,18 +265,41 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         setState((prev) => ({ ...prev, title: initialTitle }));
       }
       if (initialAccountId) {
-        setState((prev) => ({
-          ...prev,
-          account_ids: [initialAccountId],
-        }));
-      }
-      if (initialAccountId || initialCategoryId) {
+        if (isGlobalInitial) {
+          setState((prev) => ({
+            ...prev,
+            is_global: true,
+            account_ids: [],
+          }));
+          setClassification((prev) => ({
+            ...prev,
+            system: {
+              ...prev.system,
+              account: null,
+              ...(initialCategoryId ? { category: initialCategoryId } : {}),
+            },
+          }));
+        } else {
+          setState((prev) => ({
+            ...prev,
+            is_global: false,
+            account_ids: [initialAccountId],
+          }));
+          setClassification((prev) => ({
+            ...prev,
+            system: {
+              ...prev.system,
+              account: initialAccountId,
+              ...(initialCategoryId ? { category: initialCategoryId } : {}),
+            },
+          }));
+        }
+      } else if (initialCategoryId) {
         setClassification((prev) => ({
           ...prev,
           system: {
             ...prev.system,
-            ...(initialAccountId ? { account: initialAccountId } : {}),
-            ...(initialCategoryId ? { category: initialCategoryId } : {}),
+            category: initialCategoryId,
           },
         }));
       }

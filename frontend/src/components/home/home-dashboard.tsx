@@ -55,6 +55,7 @@ interface HomeDashboardProps {
   /** Accounts with their counts, for the account tiles. */
   accountCounts: Record<string, number>;
   userName: string;
+  draftsCount?: number;
 }
 
 export function HomeDashboard({
@@ -70,6 +71,7 @@ export function HomeDashboard({
   docValues = {},
   accountCounts,
   userName,
+  draftsCount = 0,
 }: HomeDashboardProps) {
   const router = useRouter();
   const setQuery = useAppStore((s) => s.setQuery);
@@ -231,13 +233,45 @@ export function HomeDashboard({
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
       {/* Top Hero */}
       <section className="mb-8 animate-fade-in-up">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            {greeting()}, {userName}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Big Outsource IT Operations Playbook.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              {greeting()}, {userName}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Big Outsource IT Operations Playbook.
+            </p>
+          </div>
+
+          <Link
+            href="/drafts"
+            className="group flex items-center gap-3 rounded-xl border border-border/70 bg-card/60 p-3 sm:px-4 sm:py-2.5 backdrop-blur-sm transition-all hover:border-primary/50 hover:bg-card shadow-sm self-start sm:self-auto"
+            title="View my draft playbooks"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500 group-hover:bg-amber-500/20 transition-colors">
+              <IconClock className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-semibold text-foreground">My Drafts</span>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "h-4 px-1.5 text-[10px] font-bold rounded-full",
+                    draftsCount > 0
+                      ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                      : "border-muted bg-muted/30 text-muted-foreground"
+                  )}
+                >
+                  {draftsCount}
+                </Badge>
+              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {draftsCount === 1 ? '1 draft in progress' : `${draftsCount} drafts in progress`}
+              </span>
+            </div>
+            <IconArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground ml-1" />
+          </Link>
         </div>
 
         <form onSubmit={submitSearch} className="mt-5 flex max-w-2xl gap-2.5 items-center">

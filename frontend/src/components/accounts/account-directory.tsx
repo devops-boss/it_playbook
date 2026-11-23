@@ -9,6 +9,7 @@ import {
   IconCategory,
   IconClock,
   IconFlame,
+  IconPlus,
   IconSearch,
   IconWorld,
   IconX,
@@ -78,6 +79,17 @@ export function AccountDirectory({ accounts }: AccountDirectoryProps) {
               </button>
             )}
           </div>
+
+          <Button
+            asChild
+            size="sm"
+            className="h-9 gap-1.5 bg-[#233B74] text-xs font-semibold text-white hover:bg-[#233B74]/90"
+          >
+            <Link href="/admin/accounts">
+              <IconPlus className="h-4 w-4" />
+              Add Client Account
+            </Link>
+          </Button>
         </div>
       </div>
 

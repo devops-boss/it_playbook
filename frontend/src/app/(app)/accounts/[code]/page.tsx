@@ -67,20 +67,7 @@ export default async function AccountPage({
   if (!account) notFound();
 
   const [metrics, tabs] = await Promise.all([
-    isGlobal
-      ? {
-          account_id: '00000000-0000-0000-0000-000000000000',
-          account_name: 'Global Scenarios',
-          account_code: 'GLOBAL',
-          accent_color: '#0284c7',
-          total_playbooks: 0,
-          account_specific_playbooks: 0,
-          global_playbooks: 0,
-          total_occurrences: 0,
-          categories_covered: 0,
-          last_updated_at: null,
-        }
-      : getAccountMetrics(account.id),
+    getAccountMetrics(account.id),
     Promise.resolve(resolveAccountTabs(account.settings)),
   ]);
 
