@@ -7,7 +7,6 @@ import {
   IconAlertCircle,
   IconArchive,
   IconArrowLeft,
-  IconBookmark,
   IconBook2,
   IconCheck,
   IconCopy,
@@ -18,7 +17,6 @@ import {
   IconFileText,
   IconFlame,
   IconHistory,
-  IconList,
   IconLoader2,
   IconPaperclip,
   IconPhoto,
@@ -56,7 +54,6 @@ import type {
   Outcome,
   SampleTicket,
   Scenario,
-  ScenarioTemplate,
   SectionDefinition,
 } from '@/types/database';
 
@@ -69,7 +66,6 @@ interface ScenarioEditorProps {
   sections: SectionDefinition[];
   nodeTypes: NodeType[];
   outcomes: Outcome[];
-  templates: ScenarioTemplate[];
   tickets: SampleTicket[];
   userId: string;
   allScenarios?: Pick<Scenario, 'id' | 'slug' | 'title'>[];
@@ -112,146 +108,6 @@ const EMPTY_STATE: EditorState = {
   tags: [],
 };
 
-const FALLBACK_TEMPLATES: ScenarioTemplate[] = [
-  {
-    id: 'tpl-internet-down',
-    name: 'Internet Down',
-    key: 'template-internet-down',
-    description: 'Template for WAN link drops, fiber cuts, and router gateway ISP failover scenarios.',
-    criteria_defaults: { category: 'network', issue_type: 'frequent', severity: 'critical', impact_scope: 'site' },
-    sections_content: {
-      quick_fix: '<p>Switch the edge gateway router to the secondary failover ISP line (WAN Port 2). Power cycle the primary fiber ONT if unresponsive for >2 minutes.</p>',
-      symptoms: '<p>All workstations and IP phones lose public internet connectivity simultaneously. DNS lookups fail across all subnets.</p>',
-      causes: '[{"title": "Fiber line cut or upstream ISP outage", "probability": "High"}, {"title": "Fiber ONT lockup", "probability": "Medium"}]',
-      workarounds: '[{"title": "Engage Cellular LTE Backup AP", "details": "Enable the 5G cellular failover hotspot in Comms Rack."}]',
-      resolutions: '[{"step": 1, "instruction": "Verify WAN link status on edge gateway console.", "command": "ping -c 4 8.8.8.8"}, {"step": 2, "instruction": "Switch traffic policy to WAN2 Failover line.", "command": "sudo ip route replace default via 192.168.100.1 dev eth1"}]',
-      escalation: '{"level_1": "IT Support verifies physical rack LEDs.", "level_2": "Senior Network Engineer calls ISP NOC Hotline.", "sla_minutes": 15}',
-      prevention: '<p>Ensure automated ping-based dual-WAN failover health check is active at all times.</p>',
-    },
-    flowchart_template: null,
-    is_global: true,
-    account_id: null,
-    is_active: true,
-    created_by: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-teams-media',
-    name: 'Teams Audio/Video',
-    key: 'template-teams-audio-video',
-    description: 'Template for robotic audio, video stuttering, and high CPU usage in Microsoft Teams.',
-    criteria_defaults: { category: 'collaboration', issue_type: 'anticipated', severity: 'medium', impact_scope: 'team' },
-    sections_content: {
-      quick_fix: '<p>Disable GPU hardware acceleration in Teams settings and clear the local Teams app cache directory.</p>',
-      symptoms: '<p>Audio robotic/stuttering and video frames freezing during live customer tutoring sessions.</p>',
-      causes: '[{"title": "Corrupt Teams Electron / WebView2 media cache", "probability": "High"}, {"title": "Integrated GPU hardware decoding conflict", "probability": "Medium"}]',
-      workarounds: '[{"title": "Switch to Teams Web in Chrome", "details": "Open teams.microsoft.com in Google Chrome with hardware acceleration disabled."}]',
-      resolutions: '[{"step": 1, "instruction": "Quit Microsoft Teams completely from system tray.", "command": "taskkill /F /IM ms-teams.exe"}, {"step": 2, "instruction": "Purge local Teams cache folder.", "command": "Remove-Item -Recurse -Force $env:LOCALAPPDATA\\\\Packages\\\\MSTeams_8wekyb3d8bbwe\\\\LocalCache"}]',
-      escalation: '{"level_1": "IT Support conducts audio loopback test.", "level_2": "Escalate to Endpoint Management team for driver updates.", "sla_minutes": 60}',
-      prevention: '<p>Deploy Teams performance optimization script during endpoint maintenance windows.</p>',
-    },
-    flowchart_template: null,
-    is_global: true,
-    account_id: null,
-    is_active: true,
-    created_by: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-vpn',
-    name: 'VPN Tunnel Failure',
-    key: 'template-vpn',
-    description: 'Template for remote client VPN connectivity failures, TLS handshake timeouts, and port blockage.',
-    criteria_defaults: { category: 'network', issue_type: 'frequent', severity: 'high', impact_scope: 'single_user' },
-    sections_content: {
-      quick_fix: '<p>Flush DNS cache, toggle Wi-Fi adapter OFF and ON, and reconnect using the OpenVPN TCP profile (Port 443).</p>',
-      symptoms: '<p>Remote agent cannot connect to client portals. VPN client hangs on Connecting (TLS Handshake).</p>',
-      causes: '[{"title": "Stale DHCP lease / DNS cache corruption", "probability": "High"}, {"title": "ISP UDP throttling", "probability": "Medium"}]',
-      workarounds: '[{"title": "Mobile Hotspot tethering", "details": "Tether to 5G mobile hotspot to bypass residential ISP throttling."}]',
-      resolutions: '[{"step": 1, "instruction": "Flush DNS and reset Winsock stack.", "command": "ipconfig /flushdns && netsh winsock reset"}, {"step": 2, "instruction": "Switch VPN client protocol from UDP to TCP Port 443.", "command": null}]',
-      escalation: '{"level_1": "IT Support confirms agent credentials and MFA token.", "level_2": "Escalate to Systems Administrator for RADIUS logs.", "sla_minutes": 30}',
-      prevention: '<p>Ensure all remote laptops have auto-updating VPN clients and preconfigured TCP fallback profiles.</p>',
-    },
-    flowchart_template: null,
-    is_global: true,
-    account_id: null,
-    is_active: true,
-    created_by: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'tpl-login-sso',
-    name: 'Login / SSO Failure',
-    key: 'template-login-failure',
-    description: 'Template for account lockouts, SSO authentication loops, and expired credentials.',
-    criteria_defaults: { category: 'access', issue_type: 'frequent', severity: 'medium', impact_scope: 'single_user' },
-    sections_content: {
-      quick_fix: '<p>Verify user active status in identity directory, clear browser cookies/sessions, and trigger self-service MFA reset.</p>',
-      symptoms: '<p>User receives Invalid username or password or gets redirected back to login page in an infinite loop.</p>',
-      causes: '[{"title": "Active Directory account lockout due to failed cached attempts", "probability": "High"}, {"title": "Expired Kerberos / SAML token cookie", "probability": "Medium"}]',
-      workarounds: '[{"title": "Private Browsing / Incognito window", "details": "Log in using a clean Incognito browser session to bypass cached session cookies."}]',
-      resolutions: '[{"step": 1, "instruction": "Unlock user account and reset bad password count in Active Directory.", "command": "Unlock-ADAccount -Identity <Username>"}, {"step": 2, "instruction": "Revoke existing Azure AD / Okta refresh tokens.", "command": "Revoke-AzureADUserAllRefreshToken -ObjectId <UserGuid>"}]',
-      escalation: '{"level_1": "Service Desk unlocks account and resets MFA.", "level_2": "Identity & Access Management team reviews sign-in logs.", "sla_minutes": 15}',
-      prevention: '<p>Implement Azure AD Password Protection and SSPR (Self-Service Password Reset).</p>',
-    },
-    flowchart_template: null,
-    is_global: true,
-    account_id: null,
-    is_active: true,
-    created_by: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
-
-function formatSectionContent(val: unknown): string {
-  if (!val) return '';
-  if (typeof val !== 'string') {
-    val = JSON.stringify(val);
-  }
-  const str = (val as string).trim();
-  if (!str.startsWith('[') && !str.startsWith('{')) {
-    return str;
-  }
-  try {
-    const parsed = JSON.parse(str);
-    if (Array.isArray(parsed)) {
-      if (parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
-        if ('title' in parsed[0]) {
-          return (
-            '<ul>' +
-            parsed
-              .map((item: any) => {
-                const title = item.title ?? '';
-                const prob = item.probability ? ` (Probability: ${item.probability})` : '';
-                const details = item.details ? ` - ${item.details}` : '';
-                return `<li><strong>${title}</strong>${prob}${details}</li>`;
-              })
-              .join('') +
-            '</ul>'
-          );
-        }
-      }
-      return str;
-    } else if (typeof parsed === 'object' && parsed !== null) {
-      const parts: string[] = [];
-      if (parsed.level_1) parts.push(`<strong>Level 1:</strong> ${parsed.level_1}`);
-      if (parsed.level_2) parts.push(`<strong>Level 2:</strong> ${parsed.level_2}`);
-      if (parsed.level_3) parts.push(`<strong>Level 3:</strong> ${parsed.level_3}`);
-      if (parsed.sla_minutes) parts.push(`<strong>SLA:</strong> ${parsed.sla_minutes} minutes`);
-      if (parts.length > 0) {
-        return `<p>${parts.join('<br/>')}</p>`;
-      }
-    }
-  } catch {
-    // not valid json
-  }
-  return str;
-}
-
 export function ScenarioEditor(props: ScenarioEditorProps) {
   const router = useRouter();
   const {
@@ -263,7 +119,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     sections,
     nodeTypes,
     outcomes,
-    templates,
     tickets,
     userId,
     allScenarios = [],
@@ -271,10 +126,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     initialCategoryId = null,
     initialTitle = null,
   } = props;
-
-  const effectiveTemplates = React.useMemo(() => {
-    return templates && templates.length > 0 ? templates : FALLBACK_TEMPLATES;
-  }, [templates]);
 
   const isGlobalInitial =
     initialAccountId === '00000000-0000-0000-0000-000000000000' ||
@@ -330,10 +181,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     nodes: any[];
     edges: any[];
   }>({ nodes: [], edges: [] });
-  const [templateOpen, setTemplateOpen] = React.useState(false);
-  const [saveTemplateOpen, setSaveTemplateOpen] = React.useState(false);
-  const [templateName, setTemplateName] = React.useState('');
-  const [templateDesc, setTemplateDesc] = React.useState('');
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [newTag, setNewTag] = React.useState('');
   const [playbookType, setPlaybookType] = React.useState<'scenario' | 'documentation'>(() => {
@@ -842,200 +689,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     }
   };
 
-  const saveAsTemplateAction = async () => {
-    if (!templateName.trim()) {
-      toast.error('Template name is required.');
-      return;
-    }
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.from('pb_templates').insert({
-        name: templateName.trim(),
-        key: `custom-template-${Date.now().toString(36)}`,
-        description: templateDesc.trim() || null,
-        criteria_defaults: {
-          category: classification.system.category,
-          issue_type: classification.system.issue_type,
-          severity: classification.system.severity,
-          impact_scope: classification.system.impact_scope,
-        },
-        sections_content: {
-          quick_fix: state.quick_fix,
-          symptoms: state.symptoms,
-          causes: state.causes,
-          workarounds: state.workarounds,
-          resolutions: state.resolutions,
-          escalation: state.escalation,
-          prevention: state.prevention,
-        },
-        is_global: true,
-        is_active: true,
-      });
-      if (error) throw error;
-      toast.success(`Template "${templateName}" saved!`);
-      setSaveTemplateOpen(false);
-      setTemplateName('');
-      setTemplateDesc('');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not save template.');
-    }
-  };
-
-  const applyTemplate = (template: ScenarioTemplate) => {
-    const defaults = (template.criteria_defaults ?? {}) as Record<string, unknown>;
-    const content = (template.sections_content ?? {}) as Record<string, any>;
-
-    // 1. Resolve Classification System Fields
-    const nextSystem = { ...classification.system };
-
-    // Resolve category
-    let matchedCategory = null;
-    if (defaults.category) {
-      matchedCategory = categories.find(
-        (c) =>
-          c.id === defaults.category ||
-          c.slug === defaults.category ||
-          c.name.toLowerCase() === String(defaults.category).toLowerCase(),
-      );
-    }
-    // Intelligent fallback category mapping based on template name & key
-    if (!matchedCategory) {
-      const combinedName = `${template.name} ${template.key ?? ''}`.toLowerCase();
-      if (
-        combinedName.includes('network') ||
-        combinedName.includes('internet') ||
-        combinedName.includes('vpn') ||
-        combinedName.includes('wifi') ||
-        combinedName.includes('firewall') ||
-        combinedName.includes('wan')
-      ) {
-        matchedCategory = categories.find(
-          (c) => c.slug.includes('network') || c.name.toLowerCase().includes('network'),
-        );
-      } else if (
-        combinedName.includes('audio') ||
-        combinedName.includes('video') ||
-        combinedName.includes('teams') ||
-        combinedName.includes('zoom') ||
-        combinedName.includes('meeting')
-      ) {
-        matchedCategory = categories.find(
-          (c) =>
-            c.slug.includes('collab') ||
-            c.slug.includes('application') ||
-            c.name.toLowerCase().includes('application') ||
-            c.name.toLowerCase().includes('software'),
-        );
-      } else if (
-        combinedName.includes('login') ||
-        combinedName.includes('sso') ||
-        combinedName.includes('password') ||
-        combinedName.includes('auth') ||
-        combinedName.includes('access')
-      ) {
-        matchedCategory = categories.find(
-          (c) =>
-            c.slug.includes('access') ||
-            c.slug.includes('identity') ||
-            c.name.toLowerCase().includes('identity') ||
-            c.name.toLowerCase().includes('security'),
-        );
-      }
-    }
-    if (matchedCategory) {
-      nextSystem.category = matchedCategory.id;
-    }
-
-    // Resolve system criteria fields (issue_type, severity, impact_scope)
-    const resolveFieldOption = (fieldKey: string, targetVal: unknown) => {
-      if (!targetVal) return null;
-      const targetStr = String(targetVal).toLowerCase().trim();
-      const f = fields.find((fld) => fld.key === fieldKey);
-      if (!f) return null;
-      const opts = optionsByField[f.id] ?? [];
-      const match = opts.find(
-        (o) =>
-          o.id === targetVal ||
-          o.slug.toLowerCase() === targetStr ||
-          o.label.toLowerCase() === targetStr ||
-          o.label.toLowerCase().includes(targetStr),
-      );
-      return match ? match.id : null;
-    };
-
-    if (defaults.issue_type) {
-      const optId = resolveFieldOption('issue_type', defaults.issue_type);
-      if (optId) nextSystem.issue_type = optId;
-    }
-    if (defaults.severity) {
-      const optId = resolveFieldOption('severity', defaults.severity);
-      if (optId) nextSystem.severity = optId;
-    }
-    if (defaults.impact_scope) {
-      const optId = resolveFieldOption('impact_scope', defaults.impact_scope);
-      if (optId) nextSystem.impact_scope = optId;
-    }
-
-    setClassification((prev) => ({
-      ...prev,
-      system: nextSystem,
-    }));
-
-    // 2. Format sections content
-    const quickFix = content.quick_fix ? String(content.quick_fix) : '';
-    const symptoms = content.symptoms ? String(content.symptoms) : '';
-    const causes = content.causes ? formatSectionContent(content.causes) : '';
-    const workarounds = content.workarounds ? formatSectionContent(content.workarounds) : '';
-    const resolutions = content.resolutions
-      ? typeof content.resolutions === 'string'
-        ? content.resolutions
-        : JSON.stringify(content.resolutions)
-      : '';
-    const escalation = content.escalation ? formatSectionContent(content.escalation) : '';
-    const prevention = content.prevention ? String(content.prevention) : '';
-
-    // 3. Update state with title, summary, sections
-    const templateTags: string[] = [];
-    const tNameLower = template.name.toLowerCase();
-    if (tNameLower.includes('network') || tNameLower.includes('internet')) templateTags.push('network', 'isp');
-    if (tNameLower.includes('vpn')) templateTags.push('vpn', 'remote');
-    if (tNameLower.includes('teams')) templateTags.push('teams', 'media');
-    if (tNameLower.includes('login') || tNameLower.includes('sso')) templateTags.push('auth', 'sso');
-
-    setState((prev) => ({
-      ...prev,
-      title: (!prev.title || prev.title.startsWith('Untitled')) ? template.name : prev.title,
-      summary: !prev.summary ? (template.description ?? '') : prev.summary,
-      quick_fix: quickFix || prev.quick_fix,
-      symptoms: symptoms || prev.symptoms,
-      causes: causes || prev.causes,
-      workarounds: workarounds || prev.workarounds,
-      resolutions: resolutions || prev.resolutions,
-      escalation: escalation || prev.escalation,
-      prevention: prevention || prev.prevention,
-      tags: Array.from(new Set([...prev.tags, ...templateTags])),
-      custom_sections: {
-        ...prev.custom_sections,
-        ...content,
-        ...(quickFix ? { quick_fix: quickFix } : {}),
-        ...(symptoms ? { symptoms } : {}),
-        ...(causes ? { causes } : {}),
-        ...(workarounds ? { workarounds } : {}),
-        ...(resolutions ? { resolutions } : {}),
-        ...(escalation ? { escalation } : {}),
-        ...(prevention ? { prevention } : {}),
-      },
-    }));
-
-    // 4. Flowchart template if present
-    if (template.flowchart_template && (template.flowchart_template as any).nodes?.length > 0) {
-      setFlowchart(template.flowchart_template as any);
-    }
-
-    setTemplateOpen(false);
-    toast.success(`Applied template "${template.name}"`);
-  };
-
   return (
     <div className="flex min-h-0 flex-1">
       {/* ------------------------------------------------------------------ */}
@@ -1160,27 +813,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 Preview
               </Button>
             )}
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-2xs"
-              onClick={() => setTemplateOpen(true)}
-            >
-              <IconList className="h-3.5 w-3.5" />
-              Templates
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 gap-1.5 text-2xs"
-              onClick={() => setSaveTemplateOpen(true)}
-              title="Save as template"
-            >
-              <IconBookmark className="h-3.5 w-3.5" />
-              Save As Template
-            </Button>
 
             {scenario && (
               <>
@@ -1503,80 +1135,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           </div>
         </div>
       </div>
-
-      {/* Start from Template Dialog */}
-      <Dialog open={templateOpen} onOpenChange={setTemplateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Start from a template</DialogTitle>
-            <DialogDescription>
-              A template pre-fills standard criteria and section headings for common incident patterns.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-80 space-y-2 overflow-y-auto">
-            {effectiveTemplates.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No templates configured yet.</p>
-            ) : (
-              effectiveTemplates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => applyTemplate(template)}
-                  className="w-full rounded-lg border p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent"
-                >
-                  <p className="text-xs font-semibold text-foreground">{template.name}</p>
-                  {template.description && (
-                    <p className="mt-1 text-2xs text-muted-foreground leading-relaxed">
-                      {template.description}
-                    </p>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Save as Template Dialog */}
-      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Save Scenario as Template</DialogTitle>
-            <DialogDescription>
-              Create a reusable blueprint from this scenario's classification and section structure.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Template Name</Label>
-              <Input
-                value={templateName}
-                onChange={(e) => setTemplateName(e.target.value)}
-                placeholder="e.g. Fiber Link Drop Failover"
-                className="h-8 text-xs"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Description</Label>
-              <Textarea
-                value={templateDesc}
-                onChange={(e) => setTemplateDesc(e.target.value)}
-                placeholder="Brief summary of when to use this template..."
-                rows={2}
-                className="text-xs"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" size="sm" onClick={() => setSaveTemplateOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={saveAsTemplateAction}>
-              Save Template
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Confirmation Dialog: Publish Playbook */}
       <Dialog open={confirmPublishOpen} onOpenChange={setConfirmPublishOpen}>

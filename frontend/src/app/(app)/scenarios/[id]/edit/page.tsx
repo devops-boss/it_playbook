@@ -43,7 +43,6 @@ export default async function EditScenarioPage({
         sections={data.sections}
         nodeTypes={data.nodeTypes}
         outcomes={data.outcomes}
-        templates={data.templates}
         tickets={data.tickets}
         allScenarios={data.scenarios}
         userId={user.id}
