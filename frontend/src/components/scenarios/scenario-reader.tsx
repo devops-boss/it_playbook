@@ -17,10 +17,13 @@ import {
   IconDownload,
   IconEdit,
   IconExternalLink,
+  IconEye,
+  IconFileText,
   IconFlame,
   IconFolder,
   IconGitFork,
   IconHistory,
+  IconLoader2,
   IconPhoto,
   IconPrinter,
   IconShare,
@@ -1468,37 +1471,57 @@ function EscalationList({
 // ----------------------------------------------------------------------------
 function ReaderAttachmentRow({ attachment }: { attachment: Attachment }) {
   const [downloading, setDownloading] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = React.useState(false);
 
-  const handleDownload = async () => {
+  const getResolvedUrl = async () => {
     let url = attachment.signed_url;
     if (url) {
       if (url.includes('kong:8000')) {
         url = url.replace(/https?:\/\/kong:8000/i, '');
       }
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = attachment.file_name;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      return;
+      return url;
     }
+    const supabase = createClient();
+    const { data: signed } = await supabase.storage
+      .from('scenario-attachments')
+      .createSignedUrl(attachment.file_path, 3600);
+    let signedUrl = signed?.signedUrl;
+    if (signedUrl && signedUrl.includes('kong:8000')) {
+      signedUrl = signedUrl.replace(/https?:\/\/kong:8000/i, '');
+    }
+    if (signedUrl) return signedUrl;
 
+    const { data: blob } = await supabase.storage
+      .from('scenario-attachments')
+      .download(attachment.file_path);
+    if (blob) return URL.createObjectURL(blob);
+    return null;
+  };
+
+  const handlePreview = async () => {
+    setPreviewOpen(true);
+    if (previewUrl) return;
+    setPreviewLoading(true);
+    try {
+      const url = await getResolvedUrl();
+      if (url) setPreviewUrl(url);
+    } catch (err) {
+      console.error('Preview error:', err);
+      toast.error('Could not load preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleDownload = async () => {
     setDownloading(true);
     try {
-      const supabase = createClient();
-      const { data: signed } = await supabase.storage
-        .from('scenario-attachments')
-        .createSignedUrl(attachment.file_path, 3600);
-
-      let signedUrl = signed?.signedUrl;
-      if (signedUrl) {
-        if (signedUrl.includes('kong:8000')) {
-          signedUrl = signedUrl.replace(/https?:\/\/kong:8000/i, '');
-        }
+      const url = await getResolvedUrl();
+      if (url) {
         const a = document.createElement('a');
-        a.href = signedUrl;
+        a.href = url;
         a.download = attachment.file_name;
         a.target = '_blank';
         document.body.appendChild(a);
@@ -1506,22 +1529,7 @@ function ReaderAttachmentRow({ attachment }: { attachment: Attachment }) {
         document.body.removeChild(a);
         return;
       }
-
-      // Fallback: direct blob download
-      const { data: blob, error } = await supabase.storage
-        .from('scenario-attachments')
-        .download(attachment.file_path);
-
-      if (error || !blob) throw error || new Error('Download failed');
-
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = attachment.file_name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      throw new Error('Download failed');
     } catch (err: any) {
       toast.error(err?.message || 'Could not download attachment');
     } finally {
@@ -1532,31 +1540,147 @@ function ReaderAttachmentRow({ attachment }: { attachment: Attachment }) {
   const ext = attachment.file_name.split('.').pop()?.toUpperCase() || 'FILE';
 
   return (
-    <li className="flex items-center justify-between rounded-lg border bg-card p-2.5 text-xs hover:border-primary/40 transition-colors">
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <Badge variant="outline" className="text-[10px] h-5 font-mono px-1.5 uppercase shrink-0 bg-muted/50">
-          {ext}
-        </Badge>
-        <span className="truncate font-medium text-foreground">{attachment.file_name}</span>
-      </div>
-      <div className="flex items-center gap-3 shrink-0 ml-3">
-        {attachment.file_size && (
-          <span className="text-2xs tabular-nums text-muted-foreground">
-            {formatBytes(attachment.file_size)}
-          </span>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleDownload}
-          disabled={downloading}
-          className="h-7 gap-1 px-2.5 text-[11px] font-medium hover:bg-primary hover:text-primary-foreground"
-        >
-          <IconDownload className="h-3.5 w-3.5" />
-          {downloading ? 'Downloading...' : 'Download'}
-        </Button>
-      </div>
-    </li>
+    <>
+      <li className="flex items-center justify-between rounded-lg border bg-card p-2.5 text-xs hover:border-primary/40 transition-colors">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <Badge variant="outline" className="text-[10px] h-5 font-mono px-1.5 uppercase shrink-0 bg-muted/50">
+            {ext}
+          </Badge>
+          <span className="truncate font-medium text-foreground">{attachment.file_name}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          {attachment.file_size && (
+            <span className="text-2xs tabular-nums text-muted-foreground mr-1">
+              {formatBytes(attachment.file_size)}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handlePreview}
+            className="h-7 gap-1 px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            title={`Preview ${attachment.file_name}`}
+          >
+            <IconEye className="h-3.5 w-3.5" />
+            <span>View</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownload}
+            disabled={downloading}
+            className="h-7 gap-1 px-2.5 text-[11px] font-medium hover:bg-primary hover:text-primary-foreground"
+          >
+            <IconDownload className="h-3.5 w-3.5" />
+            <span>{downloading ? 'Downloading...' : 'Download'}</span>
+          </Button>
+        </div>
+      </li>
+
+      {/* Floating Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+          <DialogHeader className="border-b pb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Badge variant="outline" className="text-2xs font-mono uppercase px-1.5 py-0.5">
+                {ext}
+              </Badge>
+              <DialogTitle className="truncate text-sm font-semibold">
+                {attachment.file_name}
+              </DialogTitle>
+              {attachment.file_size && (
+                <span className="text-2xs text-muted-foreground">
+                  ({formatBytes(attachment.file_size)})
+                </span>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto py-3 min-h-[350px] flex items-center justify-center bg-muted/10 rounded-lg border">
+            {previewLoading ? (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground text-xs">
+                <IconLoader2 className="h-6 w-6 animate-spin text-primary" />
+                <span>Loading preview...</span>
+              </div>
+            ) : !previewUrl ? (
+              <div className="text-center p-6 text-muted-foreground text-xs">
+                Could not load preview. Click download below to inspect file.
+              </div>
+            ) : (
+              (() => {
+                const lowerExt = ext.toLowerCase();
+                const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(lowerExt);
+                const isPdf = lowerExt === 'pdf';
+                const isText = ['txt', 'log', 'csv', 'json', 'yaml', 'yml', 'xml', 'md', 'sh', 'ps1', 'bat'].includes(lowerExt);
+
+                if (isImage) {
+                  return (
+                    <img
+                      src={previewUrl}
+                      alt={attachment.file_name}
+                      className="max-h-[65vh] max-w-full object-contain rounded shadow-xs"
+                    />
+                  );
+                }
+                if (isPdf) {
+                  return (
+                    <iframe
+                      src={previewUrl}
+                      title={attachment.file_name}
+                      className="w-full h-[65vh] rounded border-0"
+                    />
+                  );
+                }
+                if (isText) {
+                  return (
+                    <iframe
+                      src={previewUrl}
+                      title={attachment.file_name}
+                      className="w-full h-[65vh] rounded border-0 bg-background font-mono text-xs p-2"
+                    />
+                  );
+                }
+                return (
+                  <div className="flex flex-col items-center gap-3 p-8 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-foreground">
+                      <IconFileText className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{attachment.file_name}</p>
+                      <p className="mt-1 text-2xs text-muted-foreground max-w-sm">
+                        This file format ({ext}) cannot be rendered directly in the floating preview. Click below to download and view.
+                      </p>
+                    </div>
+                    <Button size="sm" onClick={handleDownload} className="mt-2 h-8 gap-1.5 text-xs font-medium">
+                      <IconDownload className="h-3.5 w-3.5" />
+                      <span>Download File</span>
+                    </Button>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+
+          <DialogFooter className="border-t pt-3 flex items-center justify-between sm:justify-between w-full">
+            <span className="text-2xs text-muted-foreground">Attachment Preview</span>
+            <div className="flex items-center gap-2">
+              {previewUrl && (
+                <Button variant="outline" size="sm" asChild className="h-8 gap-1 text-xs">
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                    <IconExternalLink className="h-3.5 w-3.5" />
+                    <span>Open in New Tab</span>
+                  </a>
+                </Button>
+              )}
+              <Button size="sm" onClick={handleDownload} className="h-8 gap-1 text-xs">
+                <IconDownload className="h-3.5 w-3.5" />
+                <span>Download</span>
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

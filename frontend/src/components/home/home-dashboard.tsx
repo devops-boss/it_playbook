@@ -222,9 +222,10 @@ export function HomeDashboard({
     [accounts, accountCounts],
   );
 
-  // Initial display limit if not searching
+  // Initial display limit if not searching: 9 slots total (3x3 grid) to perfectly fill all 3 columns
   const isFiltering = Boolean(accountSearch.trim() || accountFilter !== 'all');
-  const displayedAccounts = isFiltering || showAllAccounts ? filteredAccounts : filteredAccounts.slice(0, 6);
+  const accountLimit = showGlobalCard ? 8 : 9;
+  const displayedAccounts = isFiltering || showAllAccounts ? filteredAccounts : filteredAccounts.slice(0, accountLimit);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
@@ -508,7 +509,7 @@ export function HomeDashboard({
               </div>
 
               {/* Show more toggle if not filtering */}
-              {!isFiltering && filteredAccounts.length > 6 && (
+              {!isFiltering && filteredAccounts.length > accountLimit && (
                 <div className="mt-3.5 pt-3 border-t text-center">
                   <Button
                     variant="ghost"
@@ -524,7 +525,7 @@ export function HomeDashboard({
                     ) : (
                       <>
                         <IconChevronDown className="h-3.5 w-3.5" />
-                        <span>Show All {filteredAccounts.length} Accounts ({filteredAccounts.length - 6} more)</span>
+                        <span>Show All {filteredAccounts.length} Accounts ({filteredAccounts.length - accountLimit} more)</span>
                       </>
                     )}
                   </Button>

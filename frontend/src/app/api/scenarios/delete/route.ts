@@ -39,6 +39,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
     }
 
+    // Try executing the SECURITY DEFINER RPC to bypass PostgREST RETURNING RLS check
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc('delete_scenario', {
+      p_scenario_id: id,
+    });
+
+    if (!rpcErr && rpcRes) {
+      if (typeof rpcRes === 'object' && (rpcRes as any).success === false) {
+        return NextResponse.json(
+          { error: (rpcRes as any).error || 'Failed to delete playbook' },
+          { status: 403 },
+        );
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    // Fallback: direct update if RPC is pending migration
     const { error: delErr } = await supabase
       .from('pb_scenarios')
       .update({ deleted_at: new Date().toISOString() })

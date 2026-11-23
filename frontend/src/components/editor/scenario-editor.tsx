@@ -13,7 +13,9 @@ import {
   IconCopy,
   IconDeviceFloppy,
   IconDownload,
+  IconExternalLink,
   IconEye,
+  IconFileText,
   IconFlame,
   IconHistory,
   IconList,
@@ -427,16 +429,28 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   }, [state, classification, flowchart]);
 
   // Save / Persist
-  // Save / Persist
   const persist = React.useCallback(
     async (
       showToast = true,
       overrideStatus?: Scenario['status'],
-      options?: { silent?: boolean; navigateOnCreate?: boolean }
+      options?: { silent?: boolean; navigateOnCreate?: boolean; defaultTitle?: string }
     ): Promise<{ success: boolean; id?: string; slug?: string } | false> => {
-      if (!state.title.trim()) {
-        if (showToast) toast.error('A scenario title is required.');
+      let titleToSave = state.title.trim();
+      if (!titleToSave && options?.defaultTitle) {
+        titleToSave = options.defaultTitle;
+      }
+      if (!titleToSave && !showToast) {
+        titleToSave = playbookType === 'documentation' ? 'Untitled Documentation & SOP' : 'Untitled Playbook';
+      }
+
+      if (!titleToSave) {
+        if (showToast) toast.error('A playbook title is required.');
         return false;
+      }
+
+      // If we auto-generated a title, reflect it in local state
+      if (!state.title.trim() && titleToSave) {
+        setState((prev) => ({ ...prev, title: titleToSave }));
       }
 
       setSaving(true);
@@ -508,7 +522,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       const effectiveId = currentScenarioId || scenario?.id;
 
       const payload: Record<string, unknown> = {
-        title: state.title.trim(),
+        title: titleToSave,
         summary: state.summary.trim() || null,
         quick_fix: quickFixValue,
         symptoms: state.symptoms || null,
@@ -2031,6 +2045,10 @@ function AttachmentsStep({
   const [isDragging, setIsDragging] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const [previewAttachment, setPreviewAttachment] = React.useState<any | null>(null);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = React.useState(false);
+
   React.useEffect(() => {
     if (scenarioId) setActiveScenarioId(scenarioId);
   }, [scenarioId]);
@@ -2053,6 +2071,38 @@ function AttachmentsStep({
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  const handlePreview = async (attachment: any) => {
+    setPreviewAttachment(attachment);
+    setPreviewLoading(true);
+    try {
+      const supabase = createClient();
+      const { data: signed } = await supabase.storage
+        .from('scenario-attachments')
+        .createSignedUrl(attachment.file_path, 3600);
+
+      let url = signed?.signedUrl;
+      if (url && url.includes('kong:8000')) {
+        url = url.replace(/https?:\/\/kong:8000/i, '');
+      }
+
+      if (url) {
+        setPreviewUrl(url);
+      } else {
+        const { data: blob } = await supabase.storage
+          .from('scenario-attachments')
+          .download(attachment.file_path);
+        if (blob) {
+          setPreviewUrl(URL.createObjectURL(blob));
+        }
+      }
+    } catch (err) {
+      console.error('Preview error:', err);
+      toast.error('Could not load preview');
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const uploadBatch = async (selectedFiles: FileList | File[]) => {
@@ -2289,6 +2339,16 @@ function AttachmentsStep({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
+                        title={`Preview ${attachment.file_name}`}
+                        onClick={() => handlePreview(attachment)}
+                      >
+                        <IconEye className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted"
                         title={`Download ${attachment.file_name}`}
                         onClick={() => handleDownload(attachment)}
                       >
@@ -2317,6 +2377,143 @@ function AttachmentsStep({
             </ul>
           </div>
         )}
+
+        {/* Floating Attachment Preview Dialog */}
+        <Dialog
+          open={Boolean(previewAttachment)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPreviewAttachment(null);
+              setPreviewUrl(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-4 sm:p-6 overflow-hidden">
+            <DialogHeader className="border-b pb-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Badge variant="outline" className="text-2xs font-mono uppercase px-1.5 py-0.5">
+                    {previewAttachment?.file_name.split('.').pop()?.toUpperCase() || 'FILE'}
+                  </Badge>
+                  <DialogTitle className="truncate text-sm font-semibold">
+                    {previewAttachment?.file_name}
+                  </DialogTitle>
+                  {previewAttachment?.file_size && (
+                    <span className="text-2xs text-muted-foreground">
+                      ({formatSize(previewAttachment.file_size)})
+                    </span>
+                  )}
+                </div>
+              </div>
+            </DialogHeader>
+
+            {/* Floating Preview Area */}
+            <div className="flex-1 overflow-auto py-3 min-h-[350px] flex items-center justify-center bg-muted/10 rounded-lg border">
+              {previewLoading ? (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground text-xs">
+                  <IconLoader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span>Loading preview...</span>
+                </div>
+              ) : !previewUrl ? (
+                <div className="text-center p-6 text-muted-foreground text-xs">
+                  Could not load preview. Use the download button below to inspect the file.
+                </div>
+              ) : (
+                (() => {
+                  const ext = previewAttachment?.file_name.split('.').pop()?.toLowerCase() || '';
+                  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(ext);
+                  const isPdf = ext === 'pdf';
+                  const isText = ['txt', 'log', 'csv', 'json', 'yaml', 'yml', 'xml', 'md', 'sh', 'ps1', 'bat'].includes(ext);
+
+                  if (isImage) {
+                    return (
+                      <img
+                        src={previewUrl}
+                        alt={previewAttachment?.file_name}
+                        className="max-h-[65vh] max-w-full object-contain rounded shadow-xs"
+                      />
+                    );
+                  }
+
+                  if (isPdf) {
+                    return (
+                      <iframe
+                        src={previewUrl}
+                        title={previewAttachment?.file_name}
+                        className="w-full h-[65vh] rounded border-0"
+                      />
+                    );
+                  }
+
+                  if (isText) {
+                    return (
+                      <iframe
+                        src={previewUrl}
+                        title={previewAttachment?.file_name}
+                        className="w-full h-[65vh] rounded border-0 bg-background font-mono text-xs p-2"
+                      />
+                    );
+                  }
+
+                  return (
+                    <div className="flex flex-col items-center gap-3 p-8 text-center">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-foreground">
+                        <IconFileText className="h-7 w-7" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          {previewAttachment?.file_name}
+                        </p>
+                        <p className="mt-1 text-2xs text-muted-foreground max-w-sm">
+                          This file format ({ext.toUpperCase()}) cannot be rendered directly in the floating preview. Click below to download and open it in your local software.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => handleDownload(previewAttachment)}
+                        className="mt-2 h-8 gap-1.5 text-xs font-medium"
+                      >
+                        <IconDownload className="h-3.5 w-3.5" />
+                        <span>Download File</span>
+                      </Button>
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+
+            <DialogFooter className="border-t pt-3 flex items-center justify-between sm:justify-between w-full">
+              <span className="text-2xs text-muted-foreground">
+                Attachment Preview
+              </span>
+              <div className="flex items-center gap-2">
+                {previewUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="h-8 gap-1 text-xs"
+                  >
+                    <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                      <IconExternalLink className="h-3.5 w-3.5" />
+                      <span>Open in New Tab</span>
+                    </a>
+                  </Button>
+                )}
+                {previewAttachment && (
+                  <Button
+                    size="sm"
+                    onClick={() => handleDownload(previewAttachment)}
+                    className="h-8 gap-1 text-xs"
+                  >
+                    <IconDownload className="h-3.5 w-3.5" />
+                    <span>Download</span>
+                  </Button>
+                )}
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

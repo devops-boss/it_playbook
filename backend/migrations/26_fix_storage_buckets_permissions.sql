@@ -78,3 +78,4 @@ FOR DELETE TO authenticated
 USING (
   bucket_id = 'scenario-attachments'
 );
+
