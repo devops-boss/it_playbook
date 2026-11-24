@@ -183,3 +183,4 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION delete_user_account(UUID, UUID) TO authenticated, anon, service_role;
+

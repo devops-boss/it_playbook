@@ -6,6 +6,7 @@ import { getCategories, getCriteriaFields } from '@/lib/data/criteria';
 import { ensureDefaultAccountsAndCategories } from '@/lib/data/ensure-defaults';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 /**
  * The authenticated application shell.

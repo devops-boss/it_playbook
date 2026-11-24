@@ -15,6 +15,7 @@ import { buildCriteriaLookup, resolveChips } from '@/lib/data/criteria-lookup';
 import { ScenarioCard } from '@/components/scenarios/scenario-card';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function FavoritesPage() {
   const user = await getCurrentUser();

@@ -12,6 +12,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
+    staleTimes: {
+      dynamic: 0,
+      static: 0,
+    },
     optimizePackageImports: [
       '@tabler/icons-react',
       'date-fns',

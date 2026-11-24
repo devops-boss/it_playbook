@@ -14,6 +14,7 @@ import {
 } from '@/lib/data/criteria';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function HomePage() {
   const user = await getCurrentUser();

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store/app-store';
 import { cn } from '@/lib/utils';
 import { TopBar } from './top-bar';
@@ -55,6 +55,16 @@ export function AppShell({
   }, []);
 
   const pathname = usePathname();
+  const router = useRouter();
+  const previousPathRef = React.useRef(pathname);
+
+  // Automatically refresh server-rendered data when navigating between pages
+  React.useEffect(() => {
+    if (previousPathRef.current !== pathname) {
+      previousPathRef.current = pathname;
+      router.refresh();
+    }
+  }, [pathname, router]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

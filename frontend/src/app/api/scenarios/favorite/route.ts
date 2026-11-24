@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +47,11 @@ export async function POST(request: NextRequest) {
         throw delError;
       }
 
+      try {
+        revalidatePath('/', 'layout');
+        revalidatePath('/favorites');
+      } catch {}
+
       return NextResponse.json({ success: true, isFavorite: false });
     } else {
       // Add to favorites
@@ -59,6 +67,11 @@ export async function POST(request: NextRequest) {
         console.error('Insert favorite error:', insError);
         throw insError;
       }
+
+      try {
+        revalidatePath('/', 'layout');
+        revalidatePath('/favorites');
+      } catch {}
 
       return NextResponse.json({ success: true, isFavorite: true });
     }

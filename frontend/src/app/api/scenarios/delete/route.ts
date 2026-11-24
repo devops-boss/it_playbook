@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,6 +54,9 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
+      try {
+        revalidatePath('/', 'layout');
+      } catch {}
       return NextResponse.json({ success: true });
     }
 
@@ -62,6 +68,9 @@ export async function POST(request: NextRequest) {
 
     if (delErr) throw delErr;
 
+    try {
+      revalidatePath('/', 'layout');
+    } catch {}
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('API delete error:', err);

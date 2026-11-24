@@ -226,6 +226,7 @@ export function ScenarioReader({
       }
       setFavorite(data.isFavorite);
       toast.success(data.isFavorite ? 'Scenario added to favorites' : 'Removed from favorites');
+      router.refresh();
     } catch (err: any) {
       setFavorite(!next);
       toast.error(err?.message || 'Could not update your favorites.');
