@@ -45,9 +45,9 @@ echo "=========================================="
 echo " [1/5] Pulling latest code from GitHub..."
 echo "=========================================="
 if [ -n "$SUDO_USER" ]; then
-  sudo -u "$SUDO_USER" git pull origin master || sudo -u "$SUDO_USER" git pull origin main || true
+  sudo -u "$SUDO_USER" git fetch origin master && sudo -u "$SUDO_USER" git reset --hard origin/master || sudo -u "$SUDO_USER" git pull origin master || true
 else
-  git pull origin master || git pull origin main || true
+  git fetch origin master && git reset --hard origin/master || git pull origin master || true
 fi
 
 echo "=========================================="
@@ -77,7 +77,9 @@ docker compose exec -T db psql -U postgres -d postgres -c "
       EXECUTE 'ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname) || ';';
     END LOOP;
   END \$\$;
-" 2>/dev/null || true
+" || docker compose exec -T db psql -U supabase_admin -d postgres -c "
+  ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
+" || true
 
 if [ -f "./scripts/migrate.sh" ]; then
   bash ./scripts/migrate.sh || true
