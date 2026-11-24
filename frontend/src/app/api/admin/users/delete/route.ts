@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -33,12 +34,34 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient();
+    const serverClient = createClient();
 
     // 1. Try calling the SECURITY DEFINER RPC
-    const { data: rpcRes, error: rpcErr } = await admin.rpc('delete_user_account', {
+    const rpcPayload = {
       p_target_user_id: targetUserId,
       p_admin_id: currentUser.id,
-    });
+    };
+
+    let rpcRes: any = null;
+    let rpcErr: any = null;
+
+    try {
+      const res = await admin.rpc('delete_user_account', rpcPayload);
+      rpcRes = res.data;
+      rpcErr = res.error;
+    } catch (e) {
+      rpcErr = e;
+    }
+
+    if (rpcErr || !rpcRes) {
+      try {
+        const res = await serverClient.rpc('delete_user_account', rpcPayload);
+        if (!res.error && res.data) {
+          rpcRes = res.data;
+          rpcErr = null;
+        }
+      } catch {}
+    }
 
     if (!rpcErr && rpcRes) {
       if (typeof rpcRes === 'object' && (rpcRes as any).success === false) {
@@ -58,10 +81,14 @@ export async function POST(request: NextRequest) {
 
     // 3. Clean up profile and relations as fallback if RPC was not yet run
     if (rpcErr) {
-      await admin.from('pb_user_roles').delete().eq('user_id', targetUserId);
-      await admin.from('pb_user_accounts').delete().eq('user_id', targetUserId);
-      await admin.from('pb_user_presence').delete().eq('user_id', targetUserId);
-      await admin.from('pb_user_profiles').delete().eq('id', targetUserId);
+      await admin.from('pb_user_roles').delete().eq('user_id', targetUserId).catch(() => {});
+      await serverClient.from('pb_user_roles').delete().eq('user_id', targetUserId).catch(() => {});
+      await admin.from('pb_user_accounts').delete().eq('user_id', targetUserId).catch(() => {});
+      await serverClient.from('pb_user_accounts').delete().eq('user_id', targetUserId).catch(() => {});
+      await admin.from('pb_user_presence').delete().eq('user_id', targetUserId).catch(() => {});
+      await serverClient.from('pb_user_presence').delete().eq('user_id', targetUserId).catch(() => {});
+      await admin.from('pb_user_profiles').delete().eq('id', targetUserId).catch(() => {});
+      await serverClient.from('pb_user_profiles').delete().eq('id', targetUserId).catch(() => {});
     }
 
     return NextResponse.json({ success: true });

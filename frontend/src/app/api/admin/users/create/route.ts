@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient();
+    const serverClient = createClient();
 
     // 1. Try GoTrue Admin API first so tokens and credentials initialize cleanly
     let authUserId: string | null = null;
@@ -53,37 +55,57 @@ export async function POST(request: NextRequest) {
     } catch {}
 
     // 2. Call admin_create_user RPC for guaranteed profile, role, account & identity setup
-    const { data: rpcRes, error: rpcErr } = await admin.rpc('admin_create_user', {
+    const rpcPayload = {
       p_email: email,
       p_display_name: displayName || email.split('@')[0],
       p_role_id: roleId,
       p_password: password,
       p_admin_id: currentUser.id,
-    });
+    };
+
+    let rpcRes: any = null;
+    let rpcErr: any = null;
+
+    try {
+      const res = await admin.rpc('admin_create_user', rpcPayload);
+      rpcRes = res.data;
+      rpcErr = res.error;
+    } catch (e) {
+      rpcErr = e;
+    }
+
+    if (rpcErr || !rpcRes) {
+      try {
+        const res = await serverClient.rpc('admin_create_user', rpcPayload);
+        if (!res.error && res.data) {
+          rpcRes = res.data;
+          rpcErr = null;
+        }
+      } catch {}
+    }
 
     if (rpcErr) {
       console.error('[API admin/users/create] RPC Error:', rpcErr);
-      // Fallback: If RPC wasn't run yet, perform manual upsert with admin client
+      // Fallback: If RPC wasn't run yet, perform manual upsert with clients
       if (authUserId) {
         await admin.from('pb_user_profiles').upsert({
           id: authUserId,
           email,
           display_name: displayName || email.split('@')[0],
           is_active: true,
-        });
+        }).catch(() => {});
 
         if (roleId) {
           await admin.from('pb_user_roles').insert({
             user_id: authUserId,
             role_id: roleId,
-          });
+          }).catch(() => {});
         }
 
-        // Grant access to accounts
         const { data: accounts } = await admin.from('pb_accounts').select('id');
         if (accounts && accounts.length > 0) {
           const accInserts = accounts.map((a) => ({ user_id: authUserId, account_id: a.id }));
-          await admin.from('pb_user_accounts').upsert(accInserts, { onConflict: 'user_id,account_id' });
+          await admin.from('pb_user_accounts').upsert(accInserts, { onConflict: 'user_id,account_id' }).catch(() => {});
         }
 
         return NextResponse.json({
@@ -101,7 +123,7 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json(
-        { error: rpcErr.message || 'Failed to create user' },
+        { error: rpcErr?.message || 'Failed to create user' },
         { status: 500 },
       );
     }
@@ -142,3 +164,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

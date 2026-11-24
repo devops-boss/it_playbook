@@ -117,7 +117,7 @@ if [[ "$REFRESH_KEYS" == "true" ]]; then
     exit 1
   fi
   ANON_KEY=$(make_jwt anon "$JWT_SECRET")
-  SERVICE_ROLE_KEY=$(make_jwt service "$JWT_SECRET")
+  SERVICE_ROLE_KEY=$(make_jwt service_role "$JWT_SECRET")
   # The keys are base64url and dots; neither is special to sed.
   sed -i "s|^ANON_KEY=.*|ANON_KEY=${ANON_KEY}|" .env
   sed -i "s|^SERVICE_ROLE_KEY=.*|SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}|" .env
@@ -134,7 +134,7 @@ REALTIME_DB_ENC_KEY=$(random_hex 8)
 PG_META_CRYPTO_KEY=$(random_hex 16)
 DEMO_USER_PASSWORD=$(random_password 20)
 ANON_KEY=$(make_jwt anon "$JWT_SECRET")
-SERVICE_ROLE_KEY=$(make_jwt service "$JWT_SECRET")
+SERVICE_ROLE_KEY=$(make_jwt service_role "$JWT_SECRET")
 
 # --- Render the .env --------------------------------------------------------
 render_env() {

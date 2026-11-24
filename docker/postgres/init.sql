@@ -38,6 +38,11 @@ BEGIN
     CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS;
   END IF;
 
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service') THEN
+    CREATE ROLE service NOLOGIN NOINHERIT BYPASSRLS;
+    GRANT service_role TO service;
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
     CREATE ROLE supabase_storage_admin NOLOGIN NOINHERIT;
   END IF;

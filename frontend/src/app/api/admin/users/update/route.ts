@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const admin = createAdminClient();
+    const serverClient = createClient();
 
     // 1. Try GoTrue Admin API to update email & metadata
     try {
@@ -58,12 +60,33 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Call admin_update_user RPC
-    const { data: rpcRes, error: rpcErr } = await admin.rpc('admin_update_user', {
+    const rpcPayload = {
       p_user_id: userId,
       p_display_name: displayName,
       p_email: email,
       p_admin_id: currentUser.id,
-    });
+    };
+
+    let rpcRes: any = null;
+    let rpcErr: any = null;
+
+    try {
+      const res = await admin.rpc('admin_update_user', rpcPayload);
+      rpcRes = res.data;
+      rpcErr = res.error;
+    } catch (e) {
+      rpcErr = e;
+    }
+
+    if (rpcErr || !rpcRes) {
+      try {
+        const res = await serverClient.rpc('admin_update_user', rpcPayload);
+        if (!res.error && res.data) {
+          rpcRes = res.data;
+          rpcErr = null;
+        }
+      } catch {}
+    }
 
     if (rpcErr) {
       console.error('[API admin/users/update] RPC Error:', rpcErr);
@@ -71,12 +94,26 @@ export async function POST(request: NextRequest) {
       await admin
         .from('pb_user_profiles')
         .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+        .eq('id', userId)
+        .catch(() => {});
+
+      await serverClient
+        .from('pb_user_profiles')
+        .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+        .catch(() => {});
 
       await admin
         .from('pb_user_presence')
         .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .catch(() => {});
+
+      await serverClient
+        .from('pb_user_presence')
+        .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .catch(() => {});
     }
 
     if (rpcRes && typeof rpcRes === 'object') {
@@ -105,3 +142,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

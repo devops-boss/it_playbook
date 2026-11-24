@@ -114,16 +114,24 @@ export async function POST(request: NextRequest) {
     const admin = createAdminClient();
     const serverClient = createClient();
 
-    // 1. Try calling the RPC record_presence_heartbeat
-    try {
-      const { data: rpcRes, error: rpcErr } = await admin.rpc('record_presence_heartbeat', {
-        p_user_id: userId,
-        p_display_name: displayName,
-        p_email: userEmail,
-        p_role: role,
-        p_photo_url: photoUrl,
-      });
+    // 1. Try calling the RPC record_presence_heartbeat (admin client or server client)
+    const rpcPayload = {
+      p_user_id: userId,
+      p_display_name: displayName,
+      p_email: userEmail,
+      p_role: role,
+      p_photo_url: photoUrl,
+    };
 
+    try {
+      const { data: rpcRes, error: rpcErr } = await admin.rpc('record_presence_heartbeat', rpcPayload);
+      if (!rpcErr && rpcRes && (rpcRes as any).success && Array.isArray((rpcRes as any).users)) {
+        return NextResponse.json({ success: true, users: (rpcRes as any).users });
+      }
+    } catch {}
+
+    try {
+      const { data: rpcRes, error: rpcErr } = await serverClient.rpc('record_presence_heartbeat', rpcPayload);
       if (!rpcErr && rpcRes && (rpcRes as any).success && Array.isArray((rpcRes as any).users)) {
         return NextResponse.json({ success: true, users: (rpcRes as any).users });
       }

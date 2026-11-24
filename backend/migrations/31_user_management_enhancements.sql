@@ -200,3 +200,4 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
 
 GRANT EXECUTE ON FUNCTION admin_update_user(UUID, TEXT, TEXT, UUID) TO authenticated, anon, service_role, postgres, supabase_admin;
+
