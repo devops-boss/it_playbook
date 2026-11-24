@@ -94,25 +94,31 @@ export async function POST(request: NextRequest) {
       console.error('[API admin/users/create] RPC Error:', rpcErr);
       // Fallback: If RPC wasn't run yet, perform manual upsert with clients
       if (authUserId) {
-        await admin.from('pb_user_profiles').upsert({
-          id: authUserId,
-          email,
-          display_name: displayName || email.split('@')[0],
-          role: 'IT Support',
-          is_active: true,
-        }).catch(() => {});
+        try {
+          await admin.from('pb_user_profiles').upsert({
+            id: authUserId,
+            email,
+            display_name: displayName || email.split('@')[0],
+            role: 'IT Support',
+            is_active: true,
+          });
+        } catch {}
 
         if (roleId) {
-          await admin.from('pb_user_roles').insert({
-            user_id: authUserId,
-            role_id: roleId,
-          }).catch(() => {});
+          try {
+            await admin.from('pb_user_roles').insert({
+              user_id: authUserId,
+              role_id: roleId,
+            });
+          } catch {}
         }
 
         const { data: accounts } = await admin.from('pb_accounts').select('id');
         if (accounts && accounts.length > 0) {
           const accInserts = accounts.map((a) => ({ user_id: authUserId, account_id: a.id }));
-          await admin.from('pb_user_accounts').upsert(accInserts, { onConflict: 'user_id,account_id' }).catch(() => {});
+          try {
+            await admin.from('pb_user_accounts').upsert(accInserts, { onConflict: 'user_id,account_id' });
+          } catch {}
         }
 
         return NextResponse.json({

@@ -229,8 +229,8 @@ export async function DELETE(request: NextRequest) {
     if (userId) {
       const admin = createAdminClient();
       const serverClient = createClient();
-      await admin.from('pb_user_presence').delete().eq('user_id', String(userId)).catch(() => {});
-      await serverClient.from('pb_user_presence').delete().eq('user_id', String(userId)).catch(() => {});
+      try { await admin.from('pb_user_presence').delete().eq('user_id', String(userId)); } catch {}
+      try { await serverClient.from('pb_user_presence').delete().eq('user_id', String(userId)); } catch {}
     }
 
     return NextResponse.json({ success: true });

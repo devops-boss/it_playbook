@@ -72,24 +72,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Also ensure GoTrue removes the user from auth.users via Admin API
+    // 2. Ensure GoTrue removes the user from auth.users via Admin API
     try {
       await admin.auth.admin.deleteUser(targetUserId);
     } catch {
       // Ignored if RPC already deleted or user was already gone
     }
 
-    // 3. Clean up profile and relations as fallback if RPC was not yet run
-    if (rpcErr) {
-      await admin.from('pb_user_roles').delete().eq('user_id', targetUserId).catch(() => {});
-      await serverClient.from('pb_user_roles').delete().eq('user_id', targetUserId).catch(() => {});
-      await admin.from('pb_user_accounts').delete().eq('user_id', targetUserId).catch(() => {});
-      await serverClient.from('pb_user_accounts').delete().eq('user_id', targetUserId).catch(() => {});
-      await admin.from('pb_user_presence').delete().eq('user_id', targetUserId).catch(() => {});
-      await serverClient.from('pb_user_presence').delete().eq('user_id', targetUserId).catch(() => {});
-      await admin.from('pb_user_profiles').delete().eq('id', targetUserId).catch(() => {});
-      await serverClient.from('pb_user_profiles').delete().eq('id', targetUserId).catch(() => {});
-    }
+    // 3. Clean up profile and relations
+    try { await admin.from('pb_user_roles').delete().eq('user_id', targetUserId); } catch {}
+    try { await serverClient.from('pb_user_roles').delete().eq('user_id', targetUserId); } catch {}
+    try { await admin.from('pb_user_accounts').delete().eq('user_id', targetUserId); } catch {}
+    try { await serverClient.from('pb_user_accounts').delete().eq('user_id', targetUserId); } catch {}
+    try { await admin.from('pb_user_presence').delete().eq('user_id', targetUserId); } catch {}
+    try { await serverClient.from('pb_user_presence').delete().eq('user_id', targetUserId); } catch {}
+    try { await admin.from('pb_user_favorites').delete().eq('user_id', targetUserId); } catch {}
+    try { await admin.from('pb_playbook_progress').delete().eq('user_id', targetUserId); } catch {}
+    try { await admin.from('pb_saved_views').delete().eq('user_id', targetUserId); } catch {}
+    try { await admin.from('pb_user_profiles').delete().eq('id', targetUserId); } catch {}
+    try { await serverClient.from('pb_user_profiles').delete().eq('id', targetUserId); } catch {}
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

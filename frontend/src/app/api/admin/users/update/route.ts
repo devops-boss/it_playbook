@@ -91,29 +91,33 @@ export async function POST(request: NextRequest) {
     if (rpcErr) {
       console.error('[API admin/users/update] RPC Error:', rpcErr);
       // Fallback: direct table updates
-      await admin
-        .from('pb_user_profiles')
-        .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
-        .eq('id', userId)
-        .catch(() => {});
+      try {
+        await admin
+          .from('pb_user_profiles')
+          .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+      } catch {}
 
-      await serverClient
-        .from('pb_user_profiles')
-        .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
-        .eq('id', userId)
-        .catch(() => {});
+      try {
+        await serverClient
+          .from('pb_user_profiles')
+          .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
+          .eq('id', userId);
+      } catch {}
 
-      await admin
-        .from('pb_user_presence')
-        .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .catch(() => {});
+      try {
+        await admin
+          .from('pb_user_presence')
+          .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+      } catch {}
 
-      await serverClient
-        .from('pb_user_presence')
-        .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .catch(() => {});
+      try {
+        await serverClient
+          .from('pb_user_presence')
+          .update({ display_name: displayName, email, updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+      } catch {}
     }
 
     if (rpcRes && typeof rpcRes === 'object') {
