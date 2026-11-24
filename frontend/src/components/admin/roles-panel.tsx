@@ -493,36 +493,37 @@ export function UsersPanel({
     }
   };
 
-  const toggleRole = async (userId: string, roleId: string) => {
+  const changeUserRole = async (userId: string, newRoleId: string) => {
     const supabase = createClient();
     const user = list.find((u) => u.id === userId);
-    const has = user?.role_ids.includes(roleId);
+    if (!user) return;
 
-    if (has) {
-      await supabase
-        .from('pb_user_roles')
-        .delete()
-        .eq('user_id', userId)
-        .eq('role_id', roleId);
-    } else {
-      await supabase.from('pb_user_roles').insert({
-        user_id: userId,
-        role_id: roleId,
-      });
-    }
-
-    setList(
-      list.map((u) =>
-        u.id === userId
-          ? {
-              ...u,
-              role_ids: has
-                ? u.role_ids.filter((r) => r !== roleId)
-                : [...u.role_ids, roleId],
-            }
-          : u,
-      ),
+    // Optimistically update
+    setList((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, role_ids: [newRoleId] } : u)),
     );
+
+    try {
+      await supabase.from('pb_user_roles').delete().eq('user_id', userId);
+      const { error } = await supabase.from('pb_user_roles').insert({
+        user_id: userId,
+        role_id: newRoleId,
+      });
+      if (error) throw error;
+
+      const roleName = roles.find((r) => r.id === newRoleId)?.name || 'IT Support';
+      await supabase
+        .from('pb_user_profiles')
+        .update({ role: roleName })
+        .eq('id', userId);
+
+      toast.success(
+        `Role for "${user.display_name || user.email}" set to "${roleName}"`,
+      );
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update role');
+      setList(users);
+    }
   };
 
   const toggleAccount = async (userId: string, accountId: string) => {
@@ -747,191 +748,154 @@ export function UsersPanel({
               {list.length === 0 ? 'No users found.' : `No users match "${userSearch}".`}
             </div>
           ) : (
-            <div className="divide-y divide-border/60">
-              {filteredUsers.map((user) => {
-                const hasAllAccounts =
-                  accounts.length > 0 && accounts.every((a) => user.account_ids.includes(a.id));
-                const accountCount = user.account_ids.length;
+            <div className="overflow-x-auto">
+              <div className="min-w-[760px]">
+                {/* Unified Table Header */}
+                <div className="grid grid-cols-[1.4fr_170px_220px_130px] items-center px-4 py-2.5 bg-muted/40 border-b border-border/70 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground select-none">
+                  <div>Team Member</div>
+                  <div>Security Role</div>
+                  <div>Client Account Access</div>
+                  <div className="text-right pr-2">Actions</div>
+                </div>
 
-                // Preview first 2 assigned accounts
-                const assignedAccounts = accounts.filter((a) => user.account_ids.includes(a.id));
-                const previewAccounts = assignedAccounts.slice(0, 2);
-                const remainingAccountsCount = assignedAccounts.length - previewAccounts.length;
+                {/* Table Rows */}
+                <div className="divide-y divide-border/60">
+                  {filteredUsers.map((user) => {
+                    const hasAllAccounts =
+                      accounts.length > 0 && accounts.every((a) => user.account_ids.includes(a.id));
+                    const accountCount = user.account_ids.length;
 
-                return (
-                  <div
-                    key={user.id}
-                    className="flex flex-col lg:flex-row lg:items-center justify-between p-4 gap-4 transition-colors hover:bg-muted/15"
-                  >
-                    {/* User Identity */}
-                    <div className="flex items-center gap-3 min-w-[220px]">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold ring-1 ring-primary/20">
-                        {(user.display_name || user.email || 'U').slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-semibold text-foreground truncate max-w-[180px]">
-                            {user.display_name ?? user.email?.split('@')[0]}
-                          </span>
-                          {user.is_active ? (
-                            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" title="Active" />
-                          ) : (
-                            <Badge variant="outline" className="h-4 px-1 text-[9px] text-muted-foreground">
-                              Inactive
-                            </Badge>
-                          )}
-                        </div>
-                        {user.email && (
-                          <span className="text-2xs text-muted-foreground truncate max-w-[200px]">
-                            {user.email}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Roles Badges */}
-                    <div className="flex flex-col gap-1 min-w-[170px]">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        Assigned Role
-                      </span>
-                      <div className="flex flex-wrap gap-1">
-                        {roles.map((role) => {
-                          const hasRole = user.role_ids.includes(role.id);
-                          return (
-                            <button
-                              key={role.id}
-                              type="button"
-                              onClick={() => toggleRole(user.id, role.id)}
-                              className={cn(
-                                'inline-flex items-center gap-1 rounded px-2 py-0.5 text-2xs font-medium transition-all cursor-pointer select-none',
-                                hasRole
-                                  ? 'bg-primary text-primary-foreground shadow-xs'
-                                  : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground',
-                              )}
-                              title={hasRole ? `Click to remove role ${role.name}` : `Click to assign role ${role.name}`}
-                            >
-                              {hasRole && <IconCheck className="h-2.5 w-2.5" />}
-                              <span>{role.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Account Access Summary & Quick Controls */}
-                    <div className="flex flex-col gap-1.5 min-w-[240px]">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Account Access
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => toggleAllAccounts(user.id, !hasAllAccounts)}
-                            className={cn(
-                              'text-2xs font-medium hover:underline cursor-pointer select-none',
-                              hasAllAccounts
-                                ? 'text-muted-foreground hover:text-destructive'
-                                : 'text-primary',
-                            )}
-                          >
-                            {hasAllAccounts ? 'Revoke All' : 'Grant All'}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {hasAllAccounts ? (
-                          <Badge
-                            variant="outline"
-                            className="h-6 px-2 text-2xs font-semibold bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                          >
-                            ✓ All Accounts ({accounts.length})
-                          </Badge>
-                        ) : accountCount === 0 ? (
-                          <Badge
-                            variant="outline"
-                            className="h-6 px-2 text-2xs text-muted-foreground bg-muted/40 border-dashed"
-                          >
-                            No Accounts Assigned
-                          </Badge>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <Badge
-                              variant="outline"
-                              className="h-6 px-2 text-2xs font-semibold bg-primary/10 text-primary border-primary/30"
-                            >
-                              {accountCount} of {accounts.length} Accounts
-                            </Badge>
-                            {previewAccounts.map((a) => (
-                              <span
-                                key={a.id}
-                                className="hidden sm:inline-block rounded px-1.5 py-0.5 text-[10px] font-mono bg-muted text-muted-foreground border border-border/40"
-                              >
-                                {a.code}
+                    return (
+                      <div
+                        key={user.id}
+                        className="grid grid-cols-[1.4fr_170px_220px_130px] items-center px-4 py-3 transition-colors hover:bg-muted/15"
+                      >
+                        {/* 1. User Identity */}
+                        <div className="flex items-center gap-3 min-w-0 pr-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold ring-1 ring-primary/20">
+                            {(user.display_name || user.email || 'U').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-semibold text-foreground truncate">
+                                {user.display_name ?? user.email?.split('@')[0]}
                               </span>
-                            ))}
-                            {remainingAccountsCount > 0 && (
-                              <span className="hidden sm:inline-block text-[10px] text-muted-foreground">
-                                +{remainingAccountsCount}
+                              {user.is_active ? (
+                                <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Active" />
+                              ) : (
+                                <Badge variant="outline" className="h-4 px-1 text-[9px] text-muted-foreground shrink-0">
+                                  Inactive
+                                </Badge>
+                              )}
+                            </div>
+                            {user.email && (
+                              <span className="text-2xs text-muted-foreground truncate">
+                                {user.email}
                               </span>
                             )}
                           </div>
-                        )}
+                        </div>
 
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 px-2 text-2xs gap-1 border-border/60 hover:border-primary/40"
-                          onClick={() => {
-                            setManagingUser(user);
-                            setModalAccountSearch('');
-                          }}
-                        >
-                          <IconBuilding className="h-3 w-3 text-muted-foreground" />
-                          <span>Manage</span>
-                        </Button>
+                        {/* 2. Role Selector Dropdown */}
+                        <div className="pr-3">
+                          <Select
+                            value={user.role_ids[0] || roles[0]?.id || ''}
+                            onValueChange={(val) => changeUserRole(user.id, val)}
+                          >
+                            <SelectTrigger className="h-7 w-full max-w-[155px] text-xs px-2.5 border-border/70 bg-card/60 font-medium">
+                              <SelectValue placeholder="Select role" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roles.map((r) => (
+                                <SelectItem key={r.id} value={r.id} className="text-xs">
+                                  <span className="font-medium">{r.name}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* 3. Account Access Badge + Manage Button */}
+                        <div className="flex items-center gap-2 pr-3">
+                          {hasAllAccounts ? (
+                            <Badge
+                              variant="outline"
+                              className="h-6.5 px-2 text-2xs font-semibold bg-emerald-500/10 text-emerald-400 border-emerald-500/30 gap-1 select-none shrink-0"
+                            >
+                              <IconCheck className="h-3 w-3 text-emerald-400" />
+                              All Accounts ({accounts.length})
+                            </Badge>
+                          ) : accountCount === 0 ? (
+                            <Badge
+                              variant="outline"
+                              className="h-6.5 px-2 text-2xs text-muted-foreground bg-muted/40 border-dashed select-none shrink-0"
+                            >
+                              No Accounts
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="h-6.5 px-2 text-2xs font-semibold bg-primary/10 text-primary border-primary/30 select-none shrink-0"
+                            >
+                              {accountCount} of {accounts.length}
+                            </Badge>
+                          )}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6.5 px-2 text-2xs text-muted-foreground hover:text-foreground gap-1 border-border/60 hover:bg-muted shrink-0"
+                            onClick={() => {
+                              setManagingUser(user);
+                              setModalAccountSearch('');
+                            }}
+                            title="Manage client account access"
+                          >
+                            <IconBuilding className="h-3 w-3 text-muted-foreground" />
+                            <span>Manage</span>
+                          </Button>
+                        </div>
+
+                        {/* 4. Actions (Edit / Delete) */}
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground gap-1"
+                            onClick={() => {
+                              setEditTarget(user);
+                              setEditName(user.display_name || '');
+                              setEditEmail(user.email || '');
+                            }}
+                            title="Edit name and email"
+                          >
+                            <IconEdit className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </Button>
+
+                          {isSuperAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                              onClick={() => setDeleteTarget(user)}
+                              disabled={user.id === currentUserId}
+                              title={
+                                user.id === currentUserId
+                                  ? 'You cannot delete your own account'
+                                  : 'Delete user account'
+                              }
+                            >
+                              <IconTrash className="h-3.5 w-3.5" />
+                              <span>Delete</span>
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Actions (Edit / Delete) */}
-                    <div className="flex items-center gap-1 lg:justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground gap-1"
-                        onClick={() => {
-                          setEditTarget(user);
-                          setEditName(user.display_name || '');
-                          setEditEmail(user.email || '');
-                        }}
-                        title="Edit name and email"
-                      >
-                        <IconEdit className="h-3.5 w-3.5" />
-                        <span>Edit</span>
-                      </Button>
-
-                      {isSuperAdmin && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
-                          onClick={() => setDeleteTarget(user)}
-                          disabled={user.id === currentUserId}
-                          title={
-                            user.id === currentUserId
-                              ? 'You cannot delete your own account'
-                              : 'Delete user account'
-                          }
-                        >
-                          <IconTrash className="h-3.5 w-3.5" />
-                          <span>Delete</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
