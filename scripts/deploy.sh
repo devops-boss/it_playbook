@@ -69,6 +69,7 @@ docker compose exec -T db psql -U postgres -d postgres -c "
   ALTER SCHEMA public OWNER TO postgres;
   GRANT ALL ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
   GRANT USAGE, CREATE ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
+  ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
 " 2>/dev/null || true
 
 if [ -f "./scripts/migrate.sh" ]; then
