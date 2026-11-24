@@ -10,8 +10,10 @@ import {
   IconArrowRight,
   IconArrowUpRight,
   IconCheck,
+  IconEdit,
   IconHelpCircle,
   IconLayoutGrid,
+  IconList,
   IconPlayerPlay,
   IconPlus,
   IconSettings,
@@ -106,6 +108,10 @@ function getNodeIcon(type: string, className = 'h-3.5 w-3.5') {
 function edgeLabel(edge: { label?: string | React.ReactNode }): string {
   return typeof edge.label === 'string' ? edge.label : '';
 }
+
+const nodeTypesConfig = {
+  flowNode: FlowNodeCard,
+};
 
 /**
  * Section 11 Flowchart Editor with Drag & Drop Palette, Snap to Grid,
@@ -378,6 +384,62 @@ function FlowchartEditorInner({
     setSelectedId(null);
   };
 
+  const addConnectedNode = React.useCallback(
+    (nodeTypeKey: string, branch?: 'yes' | 'no') => {
+      if (!selectedId) return;
+      const parentNode = localNodes.find((n) => n.id === selectedId);
+      if (!parentNode) return;
+
+      const type = typeByKey.get(nodeTypeKey);
+      const color = type?.color ?? '#233B74';
+      const id = `n-${nodeTypeKey}-${Date.now().toString(36)}`;
+
+      // Position next node to the right
+      const yOffset = branch === 'no' ? 120 : branch === 'yes' ? -60 : 0;
+      const position = {
+        x: parentNode.position.x + 240,
+        y: parentNode.position.y + yOffset,
+      };
+
+      const nextNode: EditorNode = {
+        id,
+        type: 'flowNode',
+        position,
+        data: {
+          label: `Next: ${type?.label ?? 'Step'}`,
+          nodeType: nodeTypeKey,
+          description: '',
+          borderColor: color,
+          backgroundColor: `${color}15`,
+        },
+      };
+
+      const isDecision = parentNode.data.nodeType === 'decision';
+      const sourceHandle = isDecision ? (branch === 'no' ? 'no' : 'yes') : 'output';
+      const edgeLabelStr = isDecision ? (branch === 'no' ? 'No' : 'Yes') : undefined;
+
+      const nextEdge: EditorEdge = {
+        id: `e-${parentNode.id}-${id}-${Date.now().toString(36)}`,
+        source: parentNode.id,
+        target: id,
+        sourceHandle,
+        targetHandle: 'input',
+        label: edgeLabelStr,
+        data: edgeLabelStr ? { branch: edgeLabelStr.toLowerCase() as 'yes' | 'no' } : undefined,
+        animated: edgeLabelStr === 'Yes',
+      };
+
+      const nextNodes = [...localNodes, nextNode];
+      const nextEdges = [...localEdges, nextEdge];
+      setLocalNodes(nextNodes);
+      setLocalEdges(nextEdges);
+      commit(nextNodes, nextEdges);
+      setSelectedId(id);
+      toast.success(`Connected new ${type?.label ?? 'step'}`);
+    },
+    [selectedId, localNodes, localEdges, typeByKey, commit],
+  );
+
   const autoLayout = () => {
     const { positions } = layerLayout(localNodes, localEdges);
     const next = localNodes.map((n) => ({
@@ -391,6 +453,13 @@ function FlowchartEditorInner({
 
   const validation = validateGraph(localNodes, localEdges);
   const selected = localNodes.find((n) => n.id === selectedId);
+
+  const nodesWithSelection = React.useMemo(() => {
+    return localNodes.map((n) => ({
+      ...n,
+      selected: n.id === selectedId,
+    }));
+  }, [localNodes, selectedId]);
 
   return (
     <div className="flex h-[720px] xl:h-[780px] 2xl:h-[840px] min-h-[620px] w-full overflow-hidden rounded-xl border bg-card shadow-xs">
@@ -488,14 +557,17 @@ function FlowchartEditorInner({
       {/* Canvas */}
       <div className="relative min-w-0 flex-1">
         <ReactFlow
-          nodes={localNodes}
+          nodes={nodesWithSelection}
           edges={localEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          onNodeClick={(_e, node) => setSelectedId(node.id)}
+          onNodeClick={(e, node) => {
+            e.stopPropagation();
+            setSelectedId(node.id);
+          }}
           onPaneClick={() => setSelectedId(null)}
-          nodeTypes={{ flowNode: FlowNodeCard }}
+          nodeTypes={nodeTypesConfig}
           snapToGrid
           snapGrid={[GRID, GRID]}
           defaultEdgeOptions={{ type: 'smoothstep' }}
@@ -640,6 +712,170 @@ function FlowchartEditorInner({
               />
             </div>
 
+            {/* Quick Add Connected Next Step */}
+            {!['end', 'resolution', 'escalate'].includes(selected.data.nodeType) && (
+              <div className="rounded-lg border bg-background/50 p-2.5 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <span>+ Add Connected Step</span>
+                  <span className="text-2xs font-normal text-primary">auto-links</span>
+                </p>
+
+                {selected.data.nodeType === 'decision' ? (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      If Yes (Pass):
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        onClick={() => addConnectedNode('action', 'yes')}
+                      >
+                        + Action
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        onClick={() => addConnectedNode('resolution', 'yes')}
+                      >
+                        + Resolution
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                        onClick={() => addConnectedNode('decision', 'yes')}
+                      >
+                        + Decision
+                      </Button>
+                    </div>
+
+                    <p className="text-[10px] font-semibold text-red-600 dark:text-red-400 pt-1">
+                      If No (Fail):
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        onClick={() => addConnectedNode('action', 'no')}
+                      >
+                        + Action
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        onClick={() => addConnectedNode('escalate', 'no')}
+                      >
+                        + Escalate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] px-2 gap-1 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        onClick={() => addConnectedNode('workaround', 'no')}
+                      >
+                        + Workaround
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1"
+                      onClick={() => addConnectedNode('action')}
+                    >
+                      + Action
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1 border-amber-500/30 text-amber-700 dark:text-amber-400"
+                      onClick={() => addConnectedNode('decision')}
+                    >
+                      + Decision
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      onClick={() => addConnectedNode('resolution')}
+                    >
+                      + Resolution
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1 border-sky-500/30 text-sky-700 dark:text-sky-400"
+                      onClick={() => addConnectedNode('workaround')}
+                    >
+                      + Workaround
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 gap-1 border-red-500/30 text-red-700 dark:text-red-400"
+                      onClick={() => addConnectedNode('escalate')}
+                    >
+                      + Escalate
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step Navigator */}
+            {localNodes.length > 1 && (
+              <div className="pt-2 border-t space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+                  <span>Switch Step ({localNodes.length})</span>
+                </p>
+                <div className="max-h-36 overflow-y-auto space-y-1">
+                  {localNodes.map((n) => {
+                    const isCur = n.id === selectedId;
+                    const typeInfo = typeByKey.get(n.data.nodeType);
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => setSelectedId(n.id)}
+                        className={cn(
+                          'w-full flex items-center gap-1.5 px-2 py-1 rounded text-2xs text-left transition-colors',
+                          isCur
+                            ? 'bg-primary text-primary-foreground font-semibold'
+                            : 'hover:bg-muted text-foreground'
+                        )}
+                      >
+                        <span
+                          className="h-2 w-2 rounded-full shrink-0"
+                          style={{
+                            backgroundColor: isCur ? '#ffffff' : typeInfo?.color ?? '#233B74',
+                          }}
+                        />
+                        <span className="truncate flex-1">{n.data.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="pt-2">
               <Button
                 variant="outline"
@@ -653,18 +889,57 @@ function FlowchartEditorInner({
             </div>
           </div>
         ) : (
-          <div className="space-y-3 text-xs text-muted-foreground">
-            <p className="font-bold uppercase tracking-wider text-foreground">
-              Canvas Guide
-            </p>
-            <p>
-              Drag any step type from the palette on the left directly onto the canvas.
-            </p>
-            <p>
-              Connect steps by dragging from a source handle on the right to the target handle on the left of another step.
-            </p>
+          <div className="space-y-4 text-xs text-muted-foreground">
+            <div>
+              <p className="font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Canvas Steps ({localNodes.length})
+              </p>
+              {localNodes.length > 0 ? (
+                <div className="space-y-1">
+                  <p className="text-2xs text-muted-foreground mb-2">
+                    Click any step below or directly on the canvas to edit its properties:
+                  </p>
+                  <div className="max-h-64 overflow-y-auto space-y-1.5">
+                    {localNodes.map((n) => {
+                      const typeInfo = typeByKey.get(n.data.nodeType);
+                      return (
+                        <button
+                          key={n.id}
+                          type="button"
+                          onClick={() => setSelectedId(n.id)}
+                          className="w-full flex items-center gap-2 p-2 rounded-lg border bg-background hover:border-primary/50 hover:bg-muted/50 text-left text-xs transition-all shadow-2xs group"
+                        >
+                          <span
+                            className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-white"
+                            style={{ backgroundColor: typeInfo?.color ?? '#233B74' }}
+                          >
+                            {getNodeIcon(n.data.nodeType, 'h-3 w-3')}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold text-foreground text-xs leading-tight group-hover:text-primary">
+                              {n.data.label}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground capitalize">
+                              {typeInfo?.label ?? n.data.nodeType}
+                            </p>
+                          </div>
+                          <IconEdit className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary shrink-0" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-2xs italic">
+                  No steps on canvas yet. Drag a step from the palette to start.
+                </p>
+              )}
+            </div>
+
             <div className="rounded-lg border border-[#E07E3C]/30 bg-[#E07E3C]/10 p-2.5 text-2xs text-[#E07E3C] dark:text-orange-400">
-              <span className="font-bold">Decision Steps:</span> Decision nodes feature dedicated <span className="font-semibold text-emerald-600">Yes</span> (top) and <span className="font-semibold text-red-600">No</span> (bottom) handles. Both branches must be connected.
+              <span className="font-bold">Decision Steps:</span> Decision nodes feature dedicated{' '}
+              <span className="font-semibold text-emerald-600">Yes</span> (top) and{' '}
+              <span className="font-semibold text-red-600">No</span> (bottom) handles. Both branches must be connected.
             </div>
           </div>
         )}
@@ -694,27 +969,44 @@ function FlowNodeCard({ data, selected }: NodeProps<EditorNodeData>) {
   return (
     <div
       className={cn(
-        'relative w-[190px] rounded-lg border-2 bg-background p-2.5 text-left shadow-sm transition-all',
-        selected && 'ring-2 ring-primary ring-offset-2',
+        'group relative w-[190px] rounded-lg border-2 bg-background p-2.5 text-left shadow-xs transition-all cursor-pointer hover:shadow-md hover:border-primary/80',
+        selected
+          ? 'ring-2 ring-primary ring-offset-2 border-primary shadow-md'
+          : 'hover:scale-[1.01]',
       )}
       style={{
-        borderColor: data.borderColor ?? '#233B74',
+        borderColor: selected ? undefined : data.borderColor ?? '#233B74',
         backgroundColor: data.backgroundColor ?? '#ffffff',
       }}
     >
       {/* Node Header */}
-      <div className="mb-1 flex items-center gap-1.5">
+      <div className="mb-1 flex items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-white"
+            style={{ backgroundColor: data.borderColor ?? '#233B74' }}
+          >
+            {getNodeIcon(data.nodeType, 'h-2.5 w-2.5')}
+          </span>
+          <span
+            className="truncate text-[10px] font-bold uppercase tracking-wider"
+            style={{ color: data.borderColor ?? '#233B74' }}
+          >
+            {data.nodeType}
+          </span>
+        </div>
+
+        {/* Edit Pill Indicator */}
         <span
-          className="flex h-4 w-4 shrink-0 items-center justify-center rounded text-white"
-          style={{ backgroundColor: data.borderColor ?? '#233B74' }}
+          className={cn(
+            'flex items-center gap-0.5 rounded px-1 py-0.5 text-[9px] font-medium transition-all',
+            selected
+              ? 'bg-primary text-primary-foreground opacity-100 font-semibold'
+              : 'bg-muted/80 text-muted-foreground opacity-70 group-hover:opacity-100 group-hover:bg-primary/10 group-hover:text-primary'
+          )}
         >
-          {getNodeIcon(data.nodeType, 'h-2.5 w-2.5')}
-        </span>
-        <span
-          className="text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: data.borderColor ?? '#233B74' }}
-        >
-          {data.nodeType}
+          <IconEdit className="h-2.5 w-2.5" />
+          <span>{selected ? 'Editing' : 'Edit'}</span>
         </span>
       </div>
 
