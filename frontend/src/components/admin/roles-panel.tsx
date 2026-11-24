@@ -3,16 +3,27 @@
 import * as React from 'react';
 import { toast } from 'sonner';
 import {
+  IconAlertTriangle,
   IconCheck,
   IconDeviceFloppy,
+  IconLoader2,
   IconPlus,
   IconShieldCheck,
+  IconTrash,
   IconUsers,
   IconX,
 } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -295,6 +306,8 @@ interface UsersPanelProps {
   }[];
   roles: Role[];
   accounts: Account[];
+  isSuperAdmin?: boolean;
+  currentUserId?: string;
 }
 
 /**
@@ -303,12 +316,45 @@ interface UsersPanelProps {
  * There is no public signup: an admin creates the user in Supabase Auth and
  * assigns roles and account access here.
  */
-export function UsersPanel({ users, roles, accounts }: UsersPanelProps) {
+export function UsersPanel({
+  users,
+  roles,
+  accounts,
+  isSuperAdmin = false,
+  currentUserId,
+}: UsersPanelProps) {
   const [list, setList] = React.useState(users);
   const [email, setEmail] = React.useState('');
   const [displayName, setDisplayName] = React.useState('');
   const [creating, setCreating] = React.useState(false);
   const [inviteLink, setInviteLink] = React.useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = React.useState<UsersPanelProps['users'][number] | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const confirmDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteTarget.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+      setList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      toast.success(
+        `User "${deleteTarget.display_name || deleteTarget.email}" was deleted successfully`,
+      );
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting user');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const createUser = async () => {
     if (!email.trim()) {
@@ -480,19 +526,39 @@ export function UsersPanel({ users, roles, accounts }: UsersPanelProps) {
           )}
           {list.map((user) => (
             <div key={user.id} className="rounded-md border p-2.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium">
-                  {user.display_name ?? user.email ?? user.id.slice(0, 8)}
-                </span>
-                {user.email && (
-                  <span className="text-2xs text-muted-foreground">
-                    {user.email}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium">
+                    {user.display_name ?? user.email ?? user.id.slice(0, 8)}
                   </span>
-                )}
-                {!user.is_active && (
-                  <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                    Inactive
-                  </Badge>
+                  {user.email && (
+                    <span className="text-2xs text-muted-foreground">
+                      {user.email}
+                    </span>
+                  )}
+                  {!user.is_active && (
+                    <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                      Inactive
+                    </Badge>
+                  )}
+                </div>
+
+                {isSuperAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                    onClick={() => setDeleteTarget(user)}
+                    disabled={user.id === currentUserId}
+                    title={
+                      user.id === currentUserId
+                        ? 'You cannot delete your own account'
+                        : 'Delete user account'
+                    }
+                  >
+                    <IconTrash className="h-3.5 w-3.5" />
+                    <span>Delete</span>
+                  </Button>
                 )}
               </div>
 
@@ -551,6 +617,59 @@ export function UsersPanel({ users, roles, accounts }: UsersPanelProps) {
           ))}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog: Delete User */}
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <IconAlertTriangle className="h-4 w-4" />
+              Delete User Account
+            </DialogTitle>
+            <DialogDescription className="text-xs leading-relaxed">
+              Are you sure you want to permanently delete{' '}
+              <strong className="text-foreground">
+                {deleteTarget?.display_name || deleteTarget?.email}
+              </strong>{' '}
+              ({deleteTarget?.email})? This will immediately revoke all their permissions and system access.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteTarget(null)}
+              disabled={deleting}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={confirmDeleteUser}
+              disabled={deleting}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              {deleting ? (
+                <>
+                  <IconLoader2 className="h-3.5 w-3.5 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <IconTrash className="h-3.5 w-3.5" />
+                  Confirm Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -14,6 +14,7 @@ export interface PresenceUser {
   email: string | null;
   role: string;
   onlineAt: string;
+  photoUrl?: string | null;
 }
 
 interface OnlinePresenceProps {
@@ -27,25 +28,106 @@ interface OnlinePresenceProps {
 }
 
 export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
+  const currentRole =
+    currentUser.roleNames[0] || (currentUser.isSuperAdmin ? 'Super Admin' : 'IT Support');
+
   const [onlineUsers, setOnlineUsers] = React.useState<PresenceUser[]>(() => [
     {
       id: currentUser.email || 'self',
       displayName: currentUser.displayName,
       email: currentUser.email,
-      role: currentUser.roleNames[0] || (currentUser.isSuperAdmin ? 'Admin' : 'IT Support'),
+      role: currentRole,
       onlineAt: new Date().toISOString(),
     },
   ]);
 
+  // Periodic Heartbeat + Server Presence
+  React.useEffect(() => {
+    let isCancelled = false;
+
+    const sendHeartbeat = async () => {
+      try {
+        const res = await fetch('/api/presence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            displayName: currentUser.displayName,
+            email: currentUser.email,
+            role: currentRole,
+            photoUrl: currentUser.photoUrl,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && Array.isArray(data.users)) {
+            // Merge with local user ensuring current user is always pinned
+            const userMap = new Map<string, PresenceUser>();
+
+            userMap.set(currentUser.email || 'self', {
+              id: currentUser.email || 'self',
+              displayName: currentUser.displayName,
+              email: currentUser.email,
+              role: currentRole,
+              onlineAt: new Date().toISOString(),
+            });
+
+            data.users.forEach((u: PresenceUser) => {
+              const key = u.email || u.displayName || u.id;
+              if (key) {
+                userMap.set(key, {
+                  id: u.id || key,
+                  displayName: u.displayName || key,
+                  email: u.email || null,
+                  role: u.role || 'IT Support',
+                  onlineAt: u.onlineAt || new Date().toISOString(),
+                  photoUrl: u.photoUrl,
+                });
+              }
+            });
+
+            setOnlineUsers(Array.from(userMap.values()));
+          }
+        }
+      } catch {
+        // Fallback remains with local state
+      }
+    };
+
+    // Initial heartbeat on mount
+    sendHeartbeat();
+
+    // Heartbeat every 20 seconds
+    const interval = setInterval(sendHeartbeat, 20000);
+
+    // Refresh on tab visibility return
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Clean exit on unload
+    const handleUnload = () => {
+      fetch('/api/presence', { method: 'DELETE', keepalive: true }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleUnload);
+
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [currentUser, currentRole]);
+
+  // Realtime WebSocket channel sync in parallel
   React.useEffect(() => {
     let channel: ReturnType<ReturnType<typeof createClient>['channel']> | null = null;
 
     try {
       const supabase = createClient();
-      const currentRole =
-        currentUser.roleNames[0] || (currentUser.isSuperAdmin ? 'Admin' : 'IT Support');
-
-      // Unique presence channel on the local Supabase Realtime instance
       channel = supabase.channel('online_presence', {
         config: {
           presence: {
@@ -54,43 +136,36 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
         },
       });
 
-      const updatePresenceList = () => {
+      const updateRealtimePeers = () => {
         if (!channel) return;
         const state = channel.presenceState();
-        const userMap = new Map<string, PresenceUser>();
+        setOnlineUsers((prev) => {
+          const userMap = new Map<string, PresenceUser>();
+          prev.forEach((u) => userMap.set(u.email || u.displayName, u));
 
-        // Always include the current user
-        userMap.set(currentUser.email || 'self', {
-          id: currentUser.email || 'self',
-          displayName: currentUser.displayName,
-          email: currentUser.email,
-          role: currentRole,
-          onlineAt: new Date().toISOString(),
-        });
-
-        // Collect peers from Realtime presence state
-        Object.values(state).forEach((presences) => {
-          (presences as any[]).forEach((p) => {
-            if (p && (p.email || p.displayName)) {
-              const key = p.email || p.displayName;
-              userMap.set(key, {
-                id: key,
-                displayName: p.displayName || key,
-                email: p.email || null,
-                role: p.role || 'IT Support',
-                onlineAt: p.onlineAt || new Date().toISOString(),
-              });
-            }
+          Object.values(state).forEach((presences) => {
+            (presences as any[]).forEach((p) => {
+              if (p && (p.email || p.displayName)) {
+                const key = p.email || p.displayName;
+                userMap.set(key, {
+                  id: key,
+                  displayName: p.displayName || key,
+                  email: p.email || null,
+                  role: p.role || 'IT Support',
+                  onlineAt: p.onlineAt || new Date().toISOString(),
+                });
+              }
+            });
           });
-        });
 
-        setOnlineUsers(Array.from(userMap.values()));
+          return Array.from(userMap.values());
+        });
       };
 
       channel
-        .on('presence', { event: 'sync' }, updatePresenceList)
-        .on('presence', { event: 'join' }, updatePresenceList)
-        .on('presence', { event: 'leave' }, updatePresenceList)
+        .on('presence', { event: 'sync' }, updateRealtimePeers)
+        .on('presence', { event: 'join' }, updateRealtimePeers)
+        .on('presence', { event: 'leave' }, updateRealtimePeers)
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED' && channel) {
             await channel.track({
@@ -102,7 +177,7 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
           }
         });
     } catch {
-      // Fallback remains with currentUser
+      // Realtime optional fallback handled by HTTP heartbeat
     }
 
     return () => {
@@ -110,7 +185,7 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
         channel.unsubscribe();
       }
     };
-  }, [currentUser]);
+  }, [currentUser, currentRole]);
 
   const count = onlineUsers.length;
 
@@ -132,35 +207,38 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
           </span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-0 shadow-lg">
-        <div className="flex items-center justify-between border-b px-3 py-2.5 bg-muted/30">
+      <PopoverContent align="end" className="w-80 p-0 shadow-lg">
+        <div className="flex items-center justify-between border-b px-3.5 py-2.5 bg-muted/30">
           <div className="flex items-center gap-1.5">
             <IconUsers className="h-4 w-4 text-primary" />
-            <span className="text-xs font-semibold text-foreground">Active Personnel</span>
+            <span className="text-xs font-semibold text-foreground">Online Users</span>
           </div>
-          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium">
+          <Badge
+            variant="secondary"
+            className="h-5 px-1.5 text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-medium"
+          >
             {count} Active Now
           </Badge>
         </div>
 
-        <div className="p-2 space-y-1 max-h-64 overflow-y-auto">
+        <div className="p-2 space-y-1.5 max-h-72 overflow-y-auto">
           {onlineUsers.map((u) => {
             const isMe = u.email === currentUser.email;
             return (
               <div
                 key={u.id}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs transition-colors',
-                  isMe ? 'bg-primary/5' : 'hover:bg-muted/50'
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs transition-colors',
+                  isMe ? 'bg-primary/5 border border-primary/15' : 'hover:bg-muted/50 border border-transparent'
                 )}
               >
-                <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-[11px]">
+                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#233B74]/15 text-[#233B74] dark:bg-primary/20 dark:text-primary font-bold text-xs">
                   {u.displayName.slice(0, 2).toUpperCase()}
-                  <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-background" />
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate font-medium text-foreground text-xs">
+                    <span className="truncate font-semibold text-foreground text-xs">
                       {u.displayName}
                     </span>
                     {isMe && (
@@ -170,16 +248,18 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
                     )}
                   </div>
                   {u.email && (
-                    <span className="truncate text-[11px] text-muted-foreground">
+                    <span className="truncate text-2xs text-muted-foreground">
                       {u.email}
                     </span>
                   )}
                 </div>
                 <Badge
-                  variant={u.role === 'Admin' ? 'default' : 'outline'}
+                  variant={u.role === 'Super Admin' || u.role === 'Admin' ? 'default' : 'outline'}
                   className={cn(
-                    'h-4 shrink-0 px-1 text-[9px]',
-                    u.role === 'Admin' ? 'bg-[#233B74] text-white' : 'text-muted-foreground'
+                    'h-4 shrink-0 px-1.5 text-[9px] font-medium',
+                    u.role === 'Super Admin' || u.role === 'Admin'
+                      ? 'bg-[#233B74] text-white hover:bg-[#233B74]'
+                      : 'text-muted-foreground'
                   )}
                 >
                   {u.role}
@@ -192,11 +272,10 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
         <div className="border-t px-3 py-1.5 bg-muted/20 text-center">
           <p className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
             <IconCircleCheck className="h-3 w-3 text-emerald-500" />
-            Live on-premise connection
+            Live real-time sync across system
           </p>
         </div>
       </PopoverContent>
     </Popover>
   );
 }
-

@@ -34,6 +34,8 @@ export default async function AdminUsersPage() {
           users={data.users}
           roles={data.roles}
           accounts={data.accounts}
+          isSuperAdmin={user.isSuperAdmin}
+          currentUserId={user.id}
         />
 
         <RolesPanel
