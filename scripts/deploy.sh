@@ -107,10 +107,10 @@ echo "=========================================="
 docker compose build frontend || DOCKER_BUILDKIT=0 docker compose build frontend
 
 echo "=========================================="
-echo " [5/5] Starting all services..."
+echo " [5/5] Starting all services & restarting frontend..."
 echo "=========================================="
-docker compose up -d
-docker compose restart nginx
+docker compose up -d --force-recreate frontend
+docker compose restart frontend nginx
 
 echo ""
 echo "=========================================="

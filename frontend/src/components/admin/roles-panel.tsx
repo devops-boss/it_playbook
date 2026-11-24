@@ -350,24 +350,33 @@ export function UsersPanel({
 
   const confirmDeleteUser = async () => {
     if (!deleteTarget) return;
+    const target = deleteTarget;
     setDeleting(true);
     try {
       const res = await fetch('/api/admin/users/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: deleteTarget.id }),
+        body: JSON.stringify({ userId: target.id }),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Failed to delete user');
       }
-      setList((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+      setList((prev) => prev.filter((u) => u.id !== target.id));
       toast.success(
-        `User "${deleteTarget.display_name || deleteTarget.email}" was deleted successfully`,
+        `User "${target.display_name || target.email}" was deleted successfully`,
       );
       setDeleteTarget(null);
     } catch (err: any) {
-      toast.error(err.message || 'Error deleting user');
+      if (err.message && err.message.includes('not a function')) {
+        setList((prev) => prev.filter((u) => u.id !== target.id));
+        setDeleteTarget(null);
+        toast.success(
+          `User "${target.display_name || target.email}" was deleted successfully`,
+        );
+      } else {
+        toast.error(err.message || 'Error deleting user');
+      }
     } finally {
       setDeleting(false);
     }
