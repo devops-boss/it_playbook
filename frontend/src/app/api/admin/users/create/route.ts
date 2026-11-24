@@ -51,6 +51,12 @@ export async function POST(request: NextRequest) {
 
       if (!authErr && authData?.user) {
         authUserId = authData.user.id;
+      } else {
+        const { data: listData } = await admin.auth.admin.listUsers();
+        const existing = listData?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+        if (existing) {
+          authUserId = existing.id;
+        }
       }
     } catch {}
 
@@ -92,6 +98,7 @@ export async function POST(request: NextRequest) {
           id: authUserId,
           email,
           display_name: displayName || email.split('@')[0],
+          role: 'IT Support',
           is_active: true,
         }).catch(() => {});
 

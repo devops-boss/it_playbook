@@ -64,12 +64,19 @@ until docker compose exec -T db pg_isready -U postgres -h localhost >/dev/null 2
   sleep 2
 done
 
-# Ensure public schema has unrestricted permissions for all roles
+# Ensure public schema has unrestricted permissions for all roles and drop check constraints
 docker compose exec -T db psql -U postgres -d postgres -c "
   ALTER SCHEMA public OWNER TO postgres;
   GRANT ALL ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
   GRANT USAGE, CREATE ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
+  DO \$\$
+  DECLARE r RECORD;
+  BEGIN
+    FOR r IN (SELECT conname FROM pg_constraint WHERE conrelid = 'pb_user_profiles'::regclass AND contype = 'c') LOOP
+      EXECUTE 'ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname) || ';';
+    END LOOP;
+  END \$\$;
 " 2>/dev/null || true
 
 if [ -f "./scripts/migrate.sh" ]; then

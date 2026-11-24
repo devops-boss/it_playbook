@@ -18,6 +18,7 @@ DECLARE
   v_user_id UUID;
   v_role_id UUID := p_role_id;
   v_role_name TEXT := 'IT Support';
+  v_profile_role TEXT := 'IT Support';
   v_name TEXT;
 BEGIN
   p_email := lower(trim(p_email));
@@ -35,6 +36,13 @@ BEGIN
     IF v_role_id IS NULL THEN
       SELECT id, name INTO v_role_id, v_role_name FROM pb_roles ORDER BY sort_order LIMIT 1;
     END IF;
+  END IF;
+
+  -- Map profile role safely: pb_user_profiles.role is legacy, keep it 'Admin' or 'IT Support'
+  IF v_role_name IN ('Super Admin', 'Admin') THEN
+    v_profile_role := 'Admin';
+  ELSE
+    v_profile_role := 'IT Support';
   END IF;
 
   -- 1. Check or insert into auth.users
@@ -85,7 +93,7 @@ BEGIN
 
   -- 2. Upsert profile in pb_user_profiles
   INSERT INTO pb_user_profiles (id, email, display_name, role, is_active)
-  VALUES (v_user_id, p_email, v_name, COALESCE(v_role_name, 'IT Support'), TRUE)
+  VALUES (v_user_id, p_email, v_name, v_profile_role, TRUE)
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     display_name = EXCLUDED.display_name,

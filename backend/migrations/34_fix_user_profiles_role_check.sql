@@ -4,8 +4,23 @@
 -- 2. Update admin_create_user RPC to handle all roles cleanly
 -- ============================================================================
 
--- 1. Drop the legacy check constraint
+-- 1. Drop the legacy check constraint if it exists
 ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
+
+-- Drop any other check constraints on pb_user_profiles
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN (
+    SELECT conname
+    FROM pg_constraint
+    WHERE conrelid = 'pb_user_profiles'::regclass
+      AND contype = 'c'
+  ) LOOP
+    EXECUTE 'ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname) || ';';
+  END LOOP;
+END $$;
 
 -- 2. Update admin_create_user RPC
 CREATE OR REPLACE FUNCTION admin_create_user(
@@ -39,11 +54,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- Map profile role safely
+  -- Map profile role safely: pb_user_profiles.role is legacy, keep it 'Admin' or 'IT Support'
+  -- The real granular role is stored in pb_user_roles (user_id, role_id)
   IF v_role_name IN ('Super Admin', 'Admin') THEN
     v_profile_role := 'Admin';
   ELSE
-    v_profile_role := COALESCE(v_role_name, 'IT Support');
+    v_profile_role := 'IT Support';
   END IF;
 
   -- 1. Check or insert into auth.users
