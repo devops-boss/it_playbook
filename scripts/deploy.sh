@@ -82,13 +82,36 @@ docker compose exec -T db psql -U postgres -d postgres -c "
       EXECUTE 'ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname) || ';';
     END LOOP;
   END \$\$;
-" || docker compose exec -T db psql -U supabase_admin -d postgres -c "
+docker compose exec -T db psql -U supabase_admin -d postgres -c "
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
   ALTER TABLE pb_config_history ADD COLUMN IF NOT EXISTS table_name TEXT, ADD COLUMN IF NOT EXISTS record_id UUID, ADD COLUMN IF NOT EXISTS changed_by UUID, ADD COLUMN IF NOT EXISTS old_data JSONB, ADD COLUMN IF NOT EXISTS new_data JSONB;
   ALTER TABLE pb_config_history ALTER COLUMN config_type DROP NOT NULL;
   ALTER TABLE pb_config_history ALTER COLUMN config_type SET DEFAULT 'user_profile';
   ALTER TABLE pb_config_history ALTER COLUMN action DROP NOT NULL;
   ALTER TABLE pb_config_history ALTER COLUMN action SET DEFAULT 'create';
+  DROP FUNCTION IF EXISTS delete_user_account(UUID, UUID);
+  CREATE OR REPLACE FUNCTION delete_user_account(p_target_user_id UUID, p_admin_id UUID) RETURNS JSONB AS \$\$
+  DECLARE v_target_email TEXT; v_target_name TEXT;
+  BEGIN
+    SELECT email, display_name INTO v_target_email, v_target_name FROM pb_user_profiles WHERE id = p_target_user_id;
+    DELETE FROM pb_user_presence WHERE user_id = p_target_user_id;
+    DELETE FROM pb_user_roles WHERE user_id = p_target_user_id;
+    DELETE FROM pb_user_accounts WHERE user_id = p_target_user_id;
+    DELETE FROM pb_user_favorites WHERE user_id = p_target_user_id;
+    DELETE FROM pb_playbook_progress WHERE user_id = p_target_user_id;
+    DELETE FROM pb_saved_views WHERE user_id = p_target_user_id;
+    DELETE FROM pb_user_profiles WHERE id = p_target_user_id;
+    DELETE FROM auth.identities WHERE user_id = p_target_user_id;
+    DELETE FROM auth.users WHERE id = p_target_user_id;
+    BEGIN
+      INSERT INTO pb_config_history (user_id, config_type, config_id, action, before_value, after_value, impact_summary)
+      VALUES (p_admin_id, 'user_profile', p_target_user_id, 'delete', jsonb_build_object('user_id', p_target_user_id, 'email', v_target_email, 'name', v_target_name), jsonb_build_object('deleted_by', p_admin_id, 'timestamp', now()), 'User account deleted');
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
+    RETURN jsonb_build_object('success', true);
+  END;
+  \$\$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
+  GRANT EXECUTE ON FUNCTION delete_user_account(UUID, UUID) TO postgres, supabase_admin, service_role, service, authenticated, anon, public;
 " || true
 
 if [ -f "./scripts/migrate.sh" ]; then

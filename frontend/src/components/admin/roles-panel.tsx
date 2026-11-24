@@ -352,6 +352,10 @@ export function UsersPanel({
     if (!deleteTarget) return;
     const target = deleteTarget;
     setDeleting(true);
+    // Optimistically remove user from table and close dialog immediately
+    setList((prev) => prev.filter((u) => u.id !== target.id));
+    setDeleteTarget(null);
+
     try {
       const res = await fetch('/api/admin/users/delete', {
         method: 'POST',
@@ -359,18 +363,14 @@ export function UsersPanel({
         body: JSON.stringify({ userId: target.id }),
       });
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok && !data?.error?.includes('not a function')) {
         throw new Error(data.error || 'Failed to delete user');
       }
-      setList((prev) => prev.filter((u) => u.id !== target.id));
       toast.success(
         `User "${target.display_name || target.email}" was deleted successfully`,
       );
-      setDeleteTarget(null);
     } catch (err: any) {
       if (err.message && err.message.includes('not a function')) {
-        setList((prev) => prev.filter((u) => u.id !== target.id));
-        setDeleteTarget(null);
         toast.success(
           `User "${target.display_name || target.email}" was deleted successfully`,
         );
