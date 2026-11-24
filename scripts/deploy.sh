@@ -71,6 +71,10 @@ docker compose exec -T db psql -U postgres -d postgres -c "
   GRANT USAGE, CREATE ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
   ALTER TABLE pb_config_history ADD COLUMN IF NOT EXISTS table_name TEXT, ADD COLUMN IF NOT EXISTS record_id UUID, ADD COLUMN IF NOT EXISTS changed_by UUID, ADD COLUMN IF NOT EXISTS old_data JSONB, ADD COLUMN IF NOT EXISTS new_data JSONB;
+  ALTER TABLE pb_config_history ALTER COLUMN config_type DROP NOT NULL;
+  ALTER TABLE pb_config_history ALTER COLUMN config_type SET DEFAULT 'user_profile';
+  ALTER TABLE pb_config_history ALTER COLUMN action DROP NOT NULL;
+  ALTER TABLE pb_config_history ALTER COLUMN action SET DEFAULT 'create';
   DO \$\$
   DECLARE r RECORD;
   BEGIN
@@ -81,6 +85,10 @@ docker compose exec -T db psql -U postgres -d postgres -c "
 " || docker compose exec -T db psql -U supabase_admin -d postgres -c "
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
   ALTER TABLE pb_config_history ADD COLUMN IF NOT EXISTS table_name TEXT, ADD COLUMN IF NOT EXISTS record_id UUID, ADD COLUMN IF NOT EXISTS changed_by UUID, ADD COLUMN IF NOT EXISTS old_data JSONB, ADD COLUMN IF NOT EXISTS new_data JSONB;
+  ALTER TABLE pb_config_history ALTER COLUMN config_type DROP NOT NULL;
+  ALTER TABLE pb_config_history ALTER COLUMN config_type SET DEFAULT 'user_profile';
+  ALTER TABLE pb_config_history ALTER COLUMN action DROP NOT NULL;
+  ALTER TABLE pb_config_history ALTER COLUMN action SET DEFAULT 'create';
 " || true
 
 if [ -f "./scripts/migrate.sh" ]; then

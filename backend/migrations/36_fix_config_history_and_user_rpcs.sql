@@ -4,7 +4,12 @@
 -- 2. Update admin_create_user, admin_update_user, and delete_user_account RPCs
 -- ============================================================================
 
--- 1. Add compatibility columns to pb_config_history so all audit inserts succeed
+-- 1. Relax pb_config_history column constraints and add compatibility columns
+ALTER TABLE pb_config_history ALTER COLUMN config_type DROP NOT NULL;
+ALTER TABLE pb_config_history ALTER COLUMN config_type SET DEFAULT 'user_profile';
+ALTER TABLE pb_config_history ALTER COLUMN action DROP NOT NULL;
+ALTER TABLE pb_config_history ALTER COLUMN action SET DEFAULT 'create';
+
 ALTER TABLE pb_config_history
   ADD COLUMN IF NOT EXISTS table_name TEXT,
   ADD COLUMN IF NOT EXISTS record_id UUID,
@@ -311,3 +316,4 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
 GRANT EXECUTE ON FUNCTION admin_create_user(TEXT, TEXT, UUID, TEXT, UUID) TO postgres, supabase_admin, service_role, service, authenticated, anon, public;
 GRANT EXECUTE ON FUNCTION admin_update_user(UUID, TEXT, TEXT, UUID) TO postgres, supabase_admin, service_role, service, authenticated, anon, public;
 GRANT EXECUTE ON FUNCTION delete_user_account(UUID, UUID) TO postgres, supabase_admin, service_role, service, authenticated, anon, public;
+
