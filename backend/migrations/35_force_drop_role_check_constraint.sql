@@ -132,14 +132,15 @@ BEGIN
   ON CONFLICT (user_id, account_id) DO NOTHING;
 
   -- 5. Audit record
-  INSERT INTO pb_config_history (table_name, record_id, action, changed_by, old_data, new_data)
+  INSERT INTO pb_config_history (user_id, config_type, config_id, action, before_value, after_value, impact_summary)
   VALUES (
-    'pb_user_profiles',
-    v_user_id,
-    'INSERT',
     p_admin_id,
+    'user_profile',
+    v_user_id,
+    'create',
     '{}'::jsonb,
-    jsonb_build_object('email', p_email, 'name', v_name, 'role', v_role_name)
+    jsonb_build_object('email', p_email, 'name', v_name, 'role', v_role_name),
+    'User account created'
   );
 
   RETURN jsonb_build_object(
@@ -154,3 +155,4 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
 
 GRANT EXECUTE ON FUNCTION admin_create_user(TEXT, TEXT, UUID, TEXT, UUID) TO postgres, supabase_admin, service_role, service, authenticated, anon, public;
+

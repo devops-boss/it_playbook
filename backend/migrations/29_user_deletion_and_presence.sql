@@ -170,14 +170,15 @@ BEGIN
   DELETE FROM auth.users WHERE id = p_target_user_id;
 
   -- 7. Record in audit history
-  INSERT INTO pb_config_history (table_name, record_id, action, changed_by, old_data, new_data)
+  INSERT INTO pb_config_history (user_id, config_type, config_id, action, before_value, after_value, impact_summary)
   VALUES (
-    'pb_user_profiles',
-    p_target_user_id,
-    'DELETE',
     p_admin_id,
+    'user_profile',
+    p_target_user_id,
+    'delete',
     jsonb_build_object('user_id', p_target_user_id, 'email', v_target_email, 'name', v_target_name),
-    jsonb_build_object('deleted_by', p_admin_id, 'timestamp', now())
+    jsonb_build_object('deleted_by', p_admin_id, 'timestamp', now()),
+    'User account deleted'
   );
 
   RETURN jsonb_build_object('success', true);

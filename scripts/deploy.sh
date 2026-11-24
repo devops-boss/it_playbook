@@ -64,12 +64,13 @@ until docker compose exec -T db pg_isready -U postgres -h localhost >/dev/null 2
   sleep 2
 done
 
-# Ensure public schema has unrestricted permissions for all roles and drop check constraints
+# Ensure public schema has unrestricted permissions for all roles, drop check constraints, and add audit compatibility columns
 docker compose exec -T db psql -U postgres -d postgres -c "
   ALTER SCHEMA public OWNER TO postgres;
   GRANT ALL ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
   GRANT USAGE, CREATE ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
+  ALTER TABLE pb_config_history ADD COLUMN IF NOT EXISTS table_name TEXT, ADD COLUMN IF NOT EXISTS record_id UUID, ADD COLUMN IF NOT EXISTS changed_by UUID, ADD COLUMN IF NOT EXISTS old_data JSONB, ADD COLUMN IF NOT EXISTS new_data JSONB;
   DO \$\$
   DECLARE r RECORD;
   BEGIN
@@ -79,6 +80,7 @@ docker compose exec -T db psql -U postgres -d postgres -c "
   END \$\$;
 " || docker compose exec -T db psql -U supabase_admin -d postgres -c "
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
+  ALTER TABLE pb_config_history ADD COLUMN IF NOT EXISTS table_name TEXT, ADD COLUMN IF NOT EXISTS record_id UUID, ADD COLUMN IF NOT EXISTS changed_by UUID, ADD COLUMN IF NOT EXISTS old_data JSONB, ADD COLUMN IF NOT EXISTS new_data JSONB;
 " || true
 
 if [ -f "./scripts/migrate.sh" ]; then
