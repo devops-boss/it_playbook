@@ -9,6 +9,7 @@ import {
   IconEdit,
   IconLoader2,
   IconPlus,
+  IconSearch,
   IconShieldCheck,
   IconTrash,
   IconUsers,
@@ -348,6 +349,10 @@ export function UsersPanel({
   const [editEmail, setEditEmail] = React.useState('');
   const [savingEdit, setSavingEdit] = React.useState(false);
 
+  // Search and UX States
+  const [userSearch, setUserSearch] = React.useState('');
+  const [accountFilter, setAccountFilter] = React.useState<Record<string, string>>({});
+
   const confirmDeleteUser = async () => {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -530,6 +535,46 @@ export function UsersPanel({
     );
   };
 
+  const toggleAllAccounts = async (userId: string, grantAll: boolean) => {
+    const supabase = createClient();
+    try {
+      if (grantAll) {
+        const inserts = accounts.map((a) => ({
+          user_id: userId,
+          account_id: a.id,
+        }));
+        await supabase
+          .from('pb_user_accounts')
+          .upsert(inserts, { onConflict: 'user_id,account_id' });
+
+        setList((prev) =>
+          prev.map((u) =>
+            u.id === userId
+              ? { ...u, account_ids: accounts.map((a) => a.id) }
+              : u,
+          ),
+        );
+        toast.success('Granted access to all accounts');
+      } else {
+        await supabase
+          .from('pb_user_accounts')
+          .delete()
+          .eq('user_id', userId);
+
+        setList((prev) =>
+          prev.map((u) =>
+            u.id === userId
+              ? { ...u, account_ids: [] }
+              : u,
+          ),
+        );
+        toast.success('Revoked access to all accounts');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to update accounts');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -616,123 +661,231 @@ export function UsersPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-1.5 text-xs font-medium">
-            <IconUsers className="h-3.5 w-3.5" />
-            Users ({list.length})
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-1.5 text-xs font-medium">
+              <IconUsers className="h-3.5 w-3.5" />
+              Users ({list.length})
+            </CardTitle>
+            {list.length > 2 && (
+              <div className="relative w-full sm:w-56">
+                <IconSearch className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search user or email..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="h-7.5 pl-8 text-xs"
+                />
+              </div>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2 p-3.5">
+        <CardContent className="space-y-3 p-3.5">
           {list.length === 0 && (
             <p className="text-2xs text-muted-foreground">No users yet.</p>
           )}
-          {list.map((user) => (
-            <div key={user.id} className="rounded-md border p-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium">
-                    {user.display_name ?? user.email ?? user.id.slice(0, 8)}
-                  </span>
-                  {user.email && (
-                    <span className="text-2xs text-muted-foreground">
-                      {user.email}
-                    </span>
-                  )}
-                  {!user.is_active && (
-                    <Badge variant="outline" className="h-4 px-1 text-[10px]">
-                      Inactive
-                    </Badge>
-                  )}
-                </div>
+          {list
+            .filter((user) => {
+              if (!userSearch.trim()) return true;
+              const q = userSearch.toLowerCase();
+              return (
+                (user.display_name && user.display_name.toLowerCase().includes(q)) ||
+                (user.email && user.email.toLowerCase().includes(q))
+              );
+            })
+            .map((user) => {
+              const hasAllAccounts = accounts.length > 0 && accounts.every((a) => user.account_ids.includes(a.id));
+              const currentFilter = (accountFilter[user.id] || '').toLowerCase().trim();
+              const displayedAccounts = currentFilter
+                ? accounts.filter((a) => a.name.toLowerCase().includes(currentFilter))
+                : accounts;
 
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground gap-1"
-                    onClick={() => {
-                      setEditTarget(user);
-                      setEditName(user.display_name || '');
-                      setEditEmail(user.email || '');
-                    }}
-                    title="Edit user name and email"
-                  >
-                    <IconEdit className="h-3.5 w-3.5" />
-                    <span>Edit</span>
-                  </Button>
-
-                  {isSuperAdmin && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
-                      onClick={() => setDeleteTarget(user)}
-                      disabled={user.id === currentUserId}
-                      title={
-                        user.id === currentUserId
-                          ? 'You cannot delete your own account'
-                          : 'Delete user account'
-                      }
-                    >
-                      <IconTrash className="h-3.5 w-3.5" />
-                      <span>Delete</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-2 space-y-1.5">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Roles
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {roles.map((role) => {
-                    const has = user.role_ids.includes(role.id);
-                    return (
-                      <button
-                        key={role.id}
-                        type="button"
-                        onClick={() => toggleRole(user.id, role.id)}
-                        className={cn(
-                          'chip-interactive',
-                          has && 'ring-1 ring-primary',
+              return (
+                <div key={user.id} className="rounded-lg border bg-card/40 p-3 shadow-xs space-y-3 transition-colors hover:border-border/80">
+                  {/* User Header */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary text-2xs font-semibold">
+                        {(user.display_name || user.email || 'U').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-foreground">
+                            {user.display_name ?? user.email ?? user.id.slice(0, 8)}
+                          </span>
+                          {!user.is_active && (
+                            <Badge variant="outline" className="h-4 px-1 text-[9px] text-muted-foreground">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                        {user.email && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {user.email}
+                          </span>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground gap-1"
+                        onClick={() => {
+                          setEditTarget(user);
+                          setEditName(user.display_name || '');
+                          setEditEmail(user.email || '');
+                        }}
+                        title="Edit user name and email"
                       >
-                        {has ? <IconCheck className="h-2.5 w-2.5" /> : null}
-                        {role.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                        <IconEdit className="h-3.5 w-3.5" />
+                        <span>Edit</span>
+                      </Button>
 
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Account access
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {accounts.map((account) => {
-                    const has = user.account_ids.includes(account.id);
-                    return (
-                      <button
-                        key={account.id}
-                        type="button"
-                        onClick={() => toggleAccount(user.id, account.id)}
-                        className={cn(
-                          'chip-interactive',
-                          has && 'ring-1 ring-primary',
+                      {isSuperAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                          onClick={() => setDeleteTarget(user)}
+                          disabled={user.id === currentUserId}
+                          title={
+                            user.id === currentUserId
+                              ? 'You cannot delete your own account'
+                              : 'Delete user account'
+                          }
+                        >
+                          <IconTrash className="h-3.5 w-3.5" />
+                          <span>Delete</span>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Roles Row */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Roles
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {roles.map((role) => {
+                        const has = user.role_ids.includes(role.id);
+                        return (
+                          <button
+                            key={role.id}
+                            type="button"
+                            onClick={() => toggleRole(user.id, role.id)}
+                            className={cn(
+                              'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-2xs font-medium transition-all cursor-pointer',
+                              has
+                                ? 'bg-primary text-primary-foreground shadow-xs'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
+                            )}
+                          >
+                            {has ? <IconCheck className="h-2.5 w-2.5" /> : null}
+                            <span>{role.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Account Access Row */}
+                  <div className="space-y-1.5 rounded-md bg-muted/20 p-2 border border-border/40">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Account Access
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'h-4.5 px-1.5 text-[9px] font-semibold',
+                            hasAllAccounts
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                              : user.account_ids.length === 0
+                                ? 'bg-muted text-muted-foreground border-transparent'
+                                : 'bg-primary/10 text-primary border-primary/30',
+                          )}
+                        >
+                          {hasAllAccounts
+                            ? 'All Accounts'
+                            : `${user.account_ids.length} of ${accounts.length}`}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {accounts.length > 8 && (
+                          <div className="relative">
+                            <Input
+                              placeholder="Filter..."
+                              value={accountFilter[user.id] || ''}
+                              onChange={(e) =>
+                                setAccountFilter((prev) => ({
+                                  ...prev,
+                                  [user.id]: e.target.value,
+                                }))
+                              }
+                              className="h-6 w-24 sm:w-32 text-[10px] px-1.5 py-0"
+                            />
+                          </div>
                         )}
-                      >
-                        {has ? (
-                          <IconCheck className="h-2.5 w-2.5" />
-                        ) : (
-                          <IconX className="h-2.5 w-2.5 opacity-40" />
-                        )}
-                        {account.name}
-                      </button>
-                    );
-                  })}
+                        <div className="flex items-center gap-1 text-2xs">
+                          <button
+                            type="button"
+                            disabled={hasAllAccounts}
+                            onClick={() => toggleAllAccounts(user.id, true)}
+                            className="font-medium text-primary hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                          >
+                            Select All
+                          </button>
+                          <span className="text-muted-foreground/30">·</span>
+                          <button
+                            type="button"
+                            disabled={user.account_ids.length === 0}
+                            onClick={() => toggleAllAccounts(user.id, false)}
+                            className="font-medium text-muted-foreground hover:text-destructive hover:underline disabled:opacity-30 disabled:no-underline cursor-pointer"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 pt-1 max-h-36 overflow-y-auto pr-1">
+                      {displayedAccounts.map((account) => {
+                        const has = user.account_ids.includes(account.id);
+                        return (
+                          <button
+                            key={account.id}
+                            type="button"
+                            onClick={() => toggleAccount(user.id, account.id)}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-2xs font-medium transition-all cursor-pointer',
+                              has
+                                ? 'bg-primary/15 text-primary border border-primary/40 shadow-xs'
+                                : 'bg-background/80 text-muted-foreground/75 border border-border/50 hover:bg-muted hover:text-foreground',
+                            )}
+                          >
+                            {has ? (
+                              <IconCheck className="h-2.5 w-2.5 text-primary" />
+                            ) : (
+                              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                            )}
+                            <span>{account.name}</span>
+                          </button>
+                        );
+                      })}
+                      {displayedAccounts.length === 0 && (
+                        <span className="text-2xs text-muted-foreground italic py-1">
+                          No accounts match &quot;{accountFilter[user.id]}&quot;
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              );
+            })}
         </CardContent>
       </Card>
 

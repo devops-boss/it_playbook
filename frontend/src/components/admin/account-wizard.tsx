@@ -16,6 +16,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -88,6 +96,42 @@ export function AccountWizard({ accounts, categories, account }: AccountWizardPr
   const [step, setStep] = React.useState(0);
   const [saving, setSaving] = React.useState(false);
   const [state, setState] = React.useState<WizardState>(DEFAULT_STATE);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (!account) return;
+    setDeleting(true);
+    try {
+      const supabase = createClient();
+      const { count } = await supabase
+        .from('pb_scenario_accounts')
+        .select('*', { count: 'exact', head: true })
+        .eq('account_id', account.id);
+
+      if (count && count > 0) {
+        toast.error(
+          `Cannot delete "${account.name}": It is linked to ${count} scenario(s). You can archive it instead by changing Status to Archived.`,
+        );
+        setDeleting(false);
+        setDeleteDialogOpen(false);
+        return;
+      }
+
+      await supabase.from('pb_user_accounts').delete().eq('account_id', account.id);
+      const { error } = await supabase.from('pb_accounts').delete().eq('id', account.id);
+      if (error) throw error;
+
+      toast.success(`Account "${account.name}" was deleted successfully.`);
+      router.push('/admin/accounts');
+      router.refresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete account');
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
 
   // Seed the form from the account being edited.
   React.useEffect(() => {
@@ -224,15 +268,29 @@ export function AccountWizard({ accounts, categories, account }: AccountWizardPr
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
-      <div className="mb-5">
-        <h1 className="text-base font-semibold tracking-tight">
-          {account ? `Edit ${account.name}` : 'New account'}
-        </h1>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {account
-            ? 'Update the account configuration. Changes are audit-logged.'
-            : 'Set up an account. You can start from an existing account’s configuration.'}
-        </p>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-base font-semibold tracking-tight">
+            {account ? `Edit ${account.name}` : 'New account'}
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {account
+              ? 'Update the account configuration. Changes are audit-logged.'
+              : 'Set up an account. You can start from an existing account’s configuration.'}
+          </p>
+        </div>
+        {account && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            <IconTrash className="h-3.5 w-3.5" />
+            Delete Account
+          </Button>
+        )}
       </div>
 
       {/* Step navigator */}
@@ -700,6 +758,44 @@ export function AccountWizard({ accounts, categories, account }: AccountWizardPr
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold text-destructive flex items-center gap-1.5">
+              <IconTrash className="h-4 w-4" />
+              Delete Account
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1.5">
+              Are you sure you want to permanently delete <strong className="text-foreground">{account?.name}</strong>?
+              This action cannot be undone. If this account is linked to scenarios, it must be archived instead.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="text-xs gap-1.5"
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Confirm Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
