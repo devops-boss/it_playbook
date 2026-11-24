@@ -732,7 +732,7 @@ export function UsersPanel({
               </p>
             </div>
             <div className="relative w-full sm:w-64">
-              <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search user, email, or role..."
                 value={userSearch}
@@ -926,7 +926,7 @@ export function UsersPanel({
               {/* Search & Bulk Select Toolbar */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
                 <div className="relative w-full sm:w-64">
-                  <IconSearch className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
                     placeholder="Search accounts..."
                     value={modalAccountSearch}
