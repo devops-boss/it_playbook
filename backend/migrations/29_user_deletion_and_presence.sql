@@ -8,7 +8,7 @@
 -- 1. PB_USER_PRESENCE (ACTIVE ONLINE TRACKING)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS pb_user_presence (
-  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
   email TEXT,
   role TEXT DEFAULT 'IT Support',
@@ -20,22 +20,24 @@ CREATE TABLE IF NOT EXISTS pb_user_presence (
 
 CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen ON pb_user_presence(last_seen_at);
 
+GRANT ALL ON TABLE pb_user_presence TO postgres, supabase_admin, authenticated, anon, service_role;
+
 ALTER TABLE pb_user_presence ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow all users to view presence" ON pb_user_presence;
 CREATE POLICY "Allow all users to view presence" ON pb_user_presence
-FOR SELECT TO authenticated, anon
+FOR SELECT TO authenticated, anon, service_role
 USING (TRUE);
 
 DROP POLICY IF EXISTS "Allow all users to upsert presence" ON pb_user_presence;
 CREATE POLICY "Allow all users to upsert presence" ON pb_user_presence
-FOR ALL TO authenticated, anon
+FOR ALL TO authenticated, anon, service_role
 USING (TRUE)
 WITH CHECK (TRUE);
 
 -- Secure RPC to record presence heartbeat and retrieve current active peers
 CREATE OR REPLACE FUNCTION record_presence_heartbeat(
-  p_user_id UUID,
+  p_user_id TEXT,
   p_display_name TEXT,
   p_email TEXT,
   p_role TEXT,
@@ -79,27 +81,27 @@ BEGIN
     ) ORDER BY last_seen_at DESC
   ) INTO v_users
   FROM pb_user_presence
-  WHERE last_seen_at > (now() - interval '90 seconds');
+  WHERE last_seen_at > (now() - interval '5 minutes');
 
   RETURN jsonb_build_object(
     'success', true,
     'users', COALESCE(v_users, '[]'::jsonb)
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-GRANT EXECUTE ON FUNCTION record_presence_heartbeat(UUID, TEXT, TEXT, TEXT, TEXT) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION record_presence_heartbeat(TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated, anon, service_role, postgres, supabase_admin;
 
 -- Secure RPC to remove presence immediately upon signout or tab close
-CREATE OR REPLACE FUNCTION remove_presence_heartbeat(p_user_id UUID)
+CREATE OR REPLACE FUNCTION remove_presence_heartbeat(p_user_id TEXT)
 RETURNS JSONB AS $$
 BEGIN
   DELETE FROM pb_user_presence WHERE user_id = p_user_id;
   RETURN jsonb_build_object('success', true);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-GRANT EXECUTE ON FUNCTION remove_presence_heartbeat(UUID) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION remove_presence_heartbeat(TEXT) TO authenticated, anon, service_role, postgres, supabase_admin;
 
 
 -- ----------------------------------------------------------------------------

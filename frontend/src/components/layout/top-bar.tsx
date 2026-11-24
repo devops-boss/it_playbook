@@ -44,6 +44,7 @@ import { OnlinePresence } from './online-presence';
 interface TopBarProps {
   accounts: Account[];
   user: {
+    id?: string;
     displayName: string;
     email: string | null;
     photoUrl: string | null;

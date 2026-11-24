@@ -19,6 +19,7 @@ export interface PresenceUser {
 
 interface OnlinePresenceProps {
   currentUser: {
+    id?: string;
     displayName: string;
     email: string | null;
     photoUrl: string | null;
@@ -31,13 +32,16 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
   const currentRole =
     currentUser.roleNames[0] || (currentUser.isSuperAdmin ? 'Super Admin' : 'IT Support');
 
+  const myKey = (currentUser.email || currentUser.displayName || 'self').toLowerCase();
+
   const [onlineUsers, setOnlineUsers] = React.useState<PresenceUser[]>(() => [
     {
-      id: currentUser.email || 'self',
+      id: currentUser.id || currentUser.email || 'self',
       displayName: currentUser.displayName,
       email: currentUser.email,
       role: currentRole,
       onlineAt: new Date().toISOString(),
+      photoUrl: currentUser.photoUrl,
     },
   ]);
 
@@ -45,12 +49,47 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
   React.useEffect(() => {
     let isCancelled = false;
 
+    const mergeUsers = (incomingUsers: PresenceUser[]) => {
+      if (isCancelled || !Array.isArray(incomingUsers)) return;
+
+      const userMap = new Map<string, PresenceUser>();
+
+      // 1. Current user always pinned
+      userMap.set(myKey, {
+        id: currentUser.id || currentUser.email || 'self',
+        displayName: currentUser.displayName,
+        email: currentUser.email,
+        role: currentRole,
+        onlineAt: new Date().toISOString(),
+        photoUrl: currentUser.photoUrl,
+      });
+
+      // 2. Add all incoming users
+      incomingUsers.forEach((u) => {
+        const key = (u.email || u.displayName || u.id || '').toLowerCase();
+        if (key) {
+          const isMe = key === myKey || (currentUser.email && u.email && key === currentUser.email.toLowerCase());
+          userMap.set(key, {
+            id: u.id || key,
+            displayName: isMe ? currentUser.displayName : (u.displayName || key),
+            email: u.email || null,
+            role: u.role || 'IT Support',
+            onlineAt: u.onlineAt || new Date().toISOString(),
+            photoUrl: u.photoUrl,
+          });
+        }
+      });
+
+      setOnlineUsers(Array.from(userMap.values()));
+    };
+
     const sendHeartbeat = async () => {
       try {
         const res = await fetch('/api/presence', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            userId: currentUser.id,
             displayName: currentUser.displayName,
             email: currentUser.email,
             role: currentRole,
@@ -60,57 +99,51 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
 
         if (res.ok) {
           const data = await res.json();
-          if (!isCancelled && Array.isArray(data.users)) {
-            // Merge with local user ensuring current user is always pinned
-            const userMap = new Map<string, PresenceUser>();
-
-            userMap.set(currentUser.email || 'self', {
-              id: currentUser.email || 'self',
-              displayName: currentUser.displayName,
-              email: currentUser.email,
-              role: currentRole,
-              onlineAt: new Date().toISOString(),
-            });
-
-            data.users.forEach((u: PresenceUser) => {
-              const key = u.email || u.displayName || u.id;
-              if (key) {
-                userMap.set(key, {
-                  id: u.id || key,
-                  displayName: u.displayName || key,
-                  email: u.email || null,
-                  role: u.role || 'IT Support',
-                  onlineAt: u.onlineAt || new Date().toISOString(),
-                  photoUrl: u.photoUrl,
-                });
-              }
-            });
-
-            setOnlineUsers(Array.from(userMap.values()));
+          if (data && Array.isArray(data.users)) {
+            mergeUsers(data.users);
           }
         }
-      } catch {
-        // Fallback remains with local state
+      } catch (err) {
+        // Fallback to GET endpoint
+        try {
+          const getRes = await fetch('/api/presence');
+          if (getRes.ok) {
+            const data = await getRes.json();
+            if (data && Array.isArray(data.users)) {
+              mergeUsers(data.users);
+            }
+          }
+        } catch {}
       }
     };
 
-    // Initial heartbeat on mount
+    // Initial heartbeats immediately on mount
     sendHeartbeat();
 
-    // Heartbeat every 20 seconds
-    const interval = setInterval(sendHeartbeat, 20000);
+    // Heartbeat every 15 seconds
+    const interval = setInterval(sendHeartbeat, 15000);
 
-    // Refresh on tab visibility return
+    // Refresh on tab visibility return or focus
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         sendHeartbeat();
       }
     };
+    const handleFocus = () => {
+      sendHeartbeat();
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
 
     // Clean exit on unload
     const handleUnload = () => {
-      fetch('/api/presence', { method: 'DELETE', keepalive: true }).catch(() => {});
+      fetch('/api/presence', {
+        method: 'DELETE',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser.id }),
+      }).catch(() => {});
     };
     window.addEventListener('beforeunload', handleUnload);
 
@@ -118,9 +151,10 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
       isCancelled = true;
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('beforeunload', handleUnload);
     };
-  }, [currentUser, currentRole]);
+  }, [currentUser, currentRole, myKey]);
 
   // Realtime WebSocket channel sync in parallel
   React.useEffect(() => {
@@ -131,7 +165,7 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
       channel = supabase.channel('online_presence', {
         config: {
           presence: {
-            key: currentUser.email || currentUser.displayName,
+            key: myKey,
           },
         },
       });
@@ -141,18 +175,33 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
         const state = channel.presenceState();
         setOnlineUsers((prev) => {
           const userMap = new Map<string, PresenceUser>();
-          prev.forEach((u) => userMap.set(u.email || u.displayName, u));
+          prev.forEach((u) => {
+            const key = (u.email || u.displayName || u.id || '').toLowerCase();
+            if (key) userMap.set(key, u);
+          });
+
+          // Pinned self
+          userMap.set(myKey, {
+            id: currentUser.id || currentUser.email || 'self',
+            displayName: currentUser.displayName,
+            email: currentUser.email,
+            role: currentRole,
+            onlineAt: new Date().toISOString(),
+            photoUrl: currentUser.photoUrl,
+          });
 
           Object.values(state).forEach((presences) => {
             (presences as any[]).forEach((p) => {
               if (p && (p.email || p.displayName)) {
-                const key = p.email || p.displayName;
+                const key = (p.email || p.displayName).toLowerCase();
+                const isMe = key === myKey;
                 userMap.set(key, {
-                  id: key,
-                  displayName: p.displayName || key,
+                  id: p.id || key,
+                  displayName: isMe ? currentUser.displayName : (p.displayName || key),
                   email: p.email || null,
                   role: p.role || 'IT Support',
                   onlineAt: p.onlineAt || new Date().toISOString(),
+                  photoUrl: p.photoUrl,
                 });
               }
             });
@@ -169,9 +218,11 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED' && channel) {
             await channel.track({
+              id: currentUser.id,
               displayName: currentUser.displayName,
               email: currentUser.email,
               role: currentRole,
+              photoUrl: currentUser.photoUrl,
               onlineAt: new Date().toISOString(),
             });
           }
@@ -185,7 +236,7 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
         channel.unsubscribe();
       }
     };
-  }, [currentUser, currentRole]);
+  }, [currentUser, currentRole, myKey]);
 
   const count = onlineUsers.length;
 
@@ -223,7 +274,11 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
 
         <div className="p-2 space-y-1.5 max-h-72 overflow-y-auto">
           {onlineUsers.map((u) => {
-            const isMe = u.email === currentUser.email;
+            const isMe =
+              u.email?.toLowerCase() === currentUser.email?.toLowerCase() ||
+              u.id === currentUser.id ||
+              u.displayName === currentUser.displayName;
+
             return (
               <div
                 key={u.id}
@@ -233,7 +288,7 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
                 )}
               >
                 <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#233B74]/15 text-[#233B74] dark:bg-primary/20 dark:text-primary font-bold text-xs">
-                  {u.displayName.slice(0, 2).toUpperCase()}
+                  {(u.displayName || 'U').slice(0, 2).toUpperCase()}
                   <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
