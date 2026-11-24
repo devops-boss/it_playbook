@@ -24,6 +24,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# Ensure proper repository directory ownership so git fetch/pull never encounters permission denied
+if [ -n "$SUDO_USER" ]; then
+  chown -R "$SUDO_USER":"$SUDO_USER" "$PROJECT_ROOT" 2>/dev/null || true
+fi
+
 echo "=========================================="
 echo " [0/5] Checking VPS swap space..."
 echo "=========================================="

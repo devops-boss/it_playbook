@@ -74,6 +74,32 @@ export function AccountList({ accounts, counts }: AccountListProps) {
           return;
         }
 
+        // Clean up references to prevent foreign key errors
+        try {
+          await supabase
+            .from('pb_user_profiles')
+            .update({ preferred_account_id: null })
+            .eq('preferred_account_id', targetAccount.id);
+        } catch {}
+        try {
+          await supabase
+            .from('pb_user_accounts')
+            .delete()
+            .eq('account_id', targetAccount.id);
+        } catch {}
+        try {
+          await supabase
+            .from('pb_role_permissions')
+            .delete()
+            .eq('account_id', targetAccount.id);
+        } catch {}
+        try {
+          await supabase
+            .from('pb_scenario_accounts')
+            .delete()
+            .eq('account_id', targetAccount.id);
+        } catch {}
+
         const { error } = await supabase
           .from('pb_accounts')
           .delete()

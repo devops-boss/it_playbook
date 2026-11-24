@@ -20,13 +20,12 @@ export default async function AdminUsersPage() {
   const data = await getAdminData();
 
   return (
-    <div className="px-4 py-4">
-      <div className="mx-auto max-w-3xl space-y-4">
+    <div className="px-4 py-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <h1 className="text-sm font-semibold">Users &amp; roles</h1>
-          <p className="text-2xs text-muted-foreground">
-            There is no public sign-up. Users are created here and given roles
-            and account access.
+          <h1 className="text-base font-semibold tracking-tight">Users &amp; Roles</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage team member credentials, security roles, and client account access permissions.
           </p>
         </div>
 

@@ -104,21 +104,54 @@ export function AccountWizard({ accounts, categories, account }: AccountWizardPr
     setDeleting(true);
     try {
       const supabase = createClient();
-      const { count } = await supabase
-        .from('pb_scenario_accounts')
-        .select('*', { count: 'exact', head: true })
-        .eq('account_id', account.id);
+      const [{ count: saCount }, { count: sCount }] = await Promise.all([
+        supabase
+          .from('pb_scenario_accounts')
+          .select('*', { count: 'exact', head: true })
+          .eq('account_id', account.id),
+        supabase
+          .from('pb_scenarios')
+          .select('*', { count: 'exact', head: true })
+          .eq('account_id', account.id)
+          .is('deleted_at', null),
+      ]);
 
-      if (count && count > 0) {
+      const totalCount = (saCount ?? 0) + (sCount ?? 0);
+
+      if (totalCount > 0) {
         toast.error(
-          `Cannot delete "${account.name}": It is linked to ${count} scenario(s). You can archive it instead by changing Status to Archived.`,
+          `Cannot delete "${account.name}": It is linked to ${totalCount} scenario(s). You can archive it instead by changing Status to Archived.`,
         );
         setDeleting(false);
         setDeleteDialogOpen(false);
         return;
       }
 
-      await supabase.from('pb_user_accounts').delete().eq('account_id', account.id);
+      try {
+        await supabase
+          .from('pb_user_profiles')
+          .update({ preferred_account_id: null })
+          .eq('preferred_account_id', account.id);
+      } catch {}
+      try {
+        await supabase
+          .from('pb_user_accounts')
+          .delete()
+          .eq('account_id', account.id);
+      } catch {}
+      try {
+        await supabase
+          .from('pb_role_permissions')
+          .delete()
+          .eq('account_id', account.id);
+      } catch {}
+      try {
+        await supabase
+          .from('pb_scenario_accounts')
+          .delete()
+          .eq('account_id', account.id);
+      } catch {}
+
       const { error } = await supabase.from('pb_accounts').delete().eq('id', account.id);
       if (error) throw error;
 
