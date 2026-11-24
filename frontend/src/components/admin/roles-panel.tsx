@@ -6,6 +6,7 @@ import {
   IconAlertTriangle,
   IconCheck,
   IconDeviceFloppy,
+  IconEdit,
   IconLoader2,
   IconPlus,
   IconShieldCheck,
@@ -24,6 +25,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -326,10 +334,19 @@ export function UsersPanel({
   const [list, setList] = React.useState(users);
   const [email, setEmail] = React.useState('');
   const [displayName, setDisplayName] = React.useState('');
+  const [selectedRoleId, setSelectedRoleId] = React.useState<string>(() => roles[0]?.id || '');
   const [creating, setCreating] = React.useState(false);
   const [inviteLink, setInviteLink] = React.useState<string | null>(null);
+
+  // Delete State
   const [deleteTarget, setDeleteTarget] = React.useState<UsersPanelProps['users'][number] | null>(null);
   const [deleting, setDeleting] = React.useState(false);
+
+  // Edit User State
+  const [editTarget, setEditTarget] = React.useState<UsersPanelProps['users'][number] | null>(null);
+  const [editName, setEditName] = React.useState('');
+  const [editEmail, setEditEmail] = React.useState('');
+  const [savingEdit, setSavingEdit] = React.useState(false);
 
   const confirmDeleteUser = async () => {
     if (!deleteTarget) return;
@@ -357,41 +374,87 @@ export function UsersPanel({
   };
 
   const createUser = async () => {
-    if (!email.trim()) {
-      toast.error('An email address is required.');
+    if (!email.trim() || !email.includes('@')) {
+      toast.error('A valid email address is required.');
       return;
     }
     setCreating(true);
-    const supabase = createClient();
+    try {
+      const chosenRoleId = selectedRoleId || roles[0]?.id;
+      const res = await fetch('/api/admin/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          displayName: displayName.trim() || email.split('@')[0],
+          roleId: chosenRoleId,
+        }),
+      });
 
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: email.trim(),
-      email_confirm: true,
-      user_metadata: { display_name: displayName.trim() || email.split('@')[0] },
-    });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create user');
+      }
 
-    setCreating(false);
-    if (error) {
-      toast.error(error.message);
+      if (data.user) {
+        setList((prev) => [data.user, ...prev]);
+      }
+
+      const roleName = roles.find((r) => r.id === chosenRoleId)?.name || 'IT Support';
+      toast.success(`User "${displayName.trim() || email.trim()}" created with role "${roleName}"`);
+
+      setEmail('');
+      setDisplayName('');
+    } catch (err: any) {
+      toast.error(err.message || 'Error creating user');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const saveEditUser = async () => {
+    if (!editTarget) return;
+    if (!editEmail.trim() || !editEmail.includes('@')) {
+      toast.error('A valid email address is required');
+      return;
+    }
+    if (!editName.trim()) {
+      toast.error('Display name cannot be empty');
       return;
     }
 
-    const userId = data.user?.id;
-    if (userId) {
-      await supabase.from('pb_user_profiles').upsert({
-        id: userId,
-        display_name: displayName.trim() || email.split('@')[0],
-        is_active: true,
+    setSavingEdit(true);
+    try {
+      const res = await fetch('/api/admin/users/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editTarget.id,
+          displayName: editName.trim(),
+          email: editEmail.trim(),
+        }),
       });
-      await supabase.from('pb_user_roles').insert({
-        user_id: userId,
-        role_id: roles[0]?.id,
-      });
-    }
 
-    setEmail('');
-    setDisplayName('');
-    toast.success('User created');
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update user');
+      }
+
+      setList((prev) =>
+        prev.map((u) =>
+          u.id === editTarget.id
+            ? { ...u, display_name: editName.trim(), email: editEmail.trim() }
+            : u,
+        ),
+      );
+
+      toast.success(`User updated to "${editName.trim()}" (${editEmail.trim()})`);
+      setEditTarget(null);
+    } catch (err: any) {
+      toast.error(err.message || 'Error updating user');
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const toggleRole = async (userId: string, roleId: string) => {
@@ -472,14 +535,15 @@ export function UsersPanel({
           </p>
         </CardHeader>
         <CardContent className="space-y-3 p-3.5">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="user-email" className="text-xs">
-                Email
+                Email Address
               </Label>
               <Input
                 id="user-email"
                 type="email"
+                placeholder="name@bigoutsource.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-8 text-xs"
@@ -487,23 +551,51 @@ export function UsersPanel({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="user-name" className="text-xs">
-                Display name
+                Display Name
               </Label>
               <Input
                 id="user-name"
+                placeholder="Full Name"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className="h-8 text-xs"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="user-role" className="text-xs">
+                Assign Role
+              </Label>
+              <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
+                <SelectTrigger id="user-role" className="h-8 text-xs">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((r) => (
+                    <SelectItem key={r.id} value={r.id} className="text-xs">
+                      {r.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <Button
             size="sm"
-            className="h-8 text-xs"
+            className="h-8 text-xs gap-1.5"
             onClick={createUser}
             disabled={creating}
           >
-            {creating ? 'Creating…' : 'Create user'}
+            {creating ? (
+              <>
+                <IconLoader2 className="h-3.5 w-3.5 animate-spin" />
+                Creating user...
+              </>
+            ) : (
+              <>
+                <IconPlus className="h-3.5 w-3.5" />
+                Create user
+              </>
+            )}
           </Button>
           {inviteLink && (
             <p className="break-all text-2xs text-muted-foreground">
@@ -543,23 +635,40 @@ export function UsersPanel({
                   )}
                 </div>
 
-                {isSuperAdmin && (
+                <div className="flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
-                    onClick={() => setDeleteTarget(user)}
-                    disabled={user.id === currentUserId}
-                    title={
-                      user.id === currentUserId
-                        ? 'You cannot delete your own account'
-                        : 'Delete user account'
-                    }
+                    className="h-7 px-2 text-2xs text-muted-foreground hover:bg-muted hover:text-foreground gap-1"
+                    onClick={() => {
+                      setEditTarget(user);
+                      setEditName(user.display_name || '');
+                      setEditEmail(user.email || '');
+                    }}
+                    title="Edit user name and email"
                   >
-                    <IconTrash className="h-3.5 w-3.5" />
-                    <span>Delete</span>
+                    <IconEdit className="h-3.5 w-3.5" />
+                    <span>Edit</span>
                   </Button>
-                )}
+
+                  {isSuperAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-2xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
+                      onClick={() => setDeleteTarget(user)}
+                      disabled={user.id === currentUserId}
+                      title={
+                        user.id === currentUserId
+                          ? 'You cannot delete your own account'
+                          : 'Delete user account'
+                      }
+                    >
+                      <IconTrash className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-2 space-y-1.5">
@@ -617,6 +726,82 @@ export function UsersPanel({
           ))}
         </CardContent>
       </Card>
+
+      {/* Dialog: Edit User */}
+      <Dialog
+        open={!!editTarget}
+        onOpenChange={(open) => !open && !savingEdit && setEditTarget(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <IconEdit className="h-4 w-4 text-primary" />
+              Edit User Details
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Update name and email address for this user. Changes sync immediately across authentication, profiles, and active online presence.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name" className="text-xs">
+                Display Name
+              </Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Full Name"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-email" className="text-xs">
+                Email Address
+              </Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="user@bigoutsource.com"
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditTarget(null)}
+              disabled={savingEdit}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={saveEditUser}
+              disabled={savingEdit}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              {savingEdit ? (
+                <>
+                  <IconLoader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <IconCheck className="h-3.5 w-3.5" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Confirmation Dialog: Delete User */}
       <Dialog

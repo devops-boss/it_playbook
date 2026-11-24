@@ -118,3 +118,4 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 GRANT EXECUTE ON FUNCTION remove_presence_heartbeat(TEXT) TO authenticated, anon, service_role, postgres, supabase_admin;
+
