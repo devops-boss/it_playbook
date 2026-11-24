@@ -537,12 +537,22 @@ textarea {
     font-family: 'Lexend Deca', sans-serif !important;
   }
 
-  /* Document Titles and Headings: Dark Blue #233B74 */
+  /* Document Titles and Headings: Dark Blue #233B74 - No design underlines */
   h1, h2, h3, h4, h5, h6,
   h1 *, h2 *, h3 *, h4 *, h5 *, h6 * {
     color: #233B74 !important;
     font-family: 'Lexend Deca', sans-serif !important;
     font-weight: 700 !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+  }
+
+  /* Universal removal of decorative underlines and bottom border lines in print */
+  h1, h2, h3, h4, h5, h6,
+  p, span, div, a, b, strong, u {
+    text-decoration: none !important;
+    border-bottom-width: 0 !important;
+    border-bottom: none !important;
   }
 
   h1 {
@@ -557,8 +567,8 @@ textarea {
     letter-spacing: 0.05em !important;
     margin-top: 14pt !important;
     margin-bottom: 6pt !important;
-    border-bottom: 1.5px solid #233B74 !important;
-    padding-bottom: 2pt !important;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
   }
 
   h3 {
@@ -656,12 +666,16 @@ textarea {
     content: none !important;
   }
 
-  /* Remove arbitrary screenshot images in print mode for text-based documentation */
-  img:not([alt*='Logo']):not([src*='logo']) {
-    display: none !important;
+  /* Images in documentation & resolution steps: crisp, nicely scaled, avoid breaking across pages */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: block !important;
   }
 
-  /* Logo remains visible in document header */
+  /* Logo styling in document header */
   img[src*='logo'], img[alt*='Logo'] {
     max-height: 40px !important;
     object-fit: contain !important;

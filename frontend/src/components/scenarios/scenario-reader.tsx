@@ -586,9 +586,9 @@ export function ScenarioReader({
           {/* ==================================================================== */}
           {/* PRINT-ONLY FORMAL DOCUMENTATION HEADER (A4 SOP Format)               */}
           {/* ==================================================================== */}
-          <div className="hidden print:block mb-6 pb-4 border-b-2 border-[#233B74]">
+          <div className="hidden print:block mb-6 pb-2">
             {/* Top Corporate Banner */}
-            <div className="flex items-center justify-between border-b border-[#233B74] pb-3 mb-3">
+            <div className="flex items-center justify-between pb-3 mb-3">
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -717,23 +717,6 @@ export function ScenarioReader({
                 <IconThumbDown className="h-3.5 w-3.5" />
                 No, Escalated
               </Button>
-            </div>
-          </div>
-
-          {/* Official Big Outsource Template Footer (Print Only) */}
-          <div className="hidden print:block mt-14 pt-4 border-t-2 border-[#233B74] text-center text-xs avoid-break">
-            <div className="text-sm font-bold tracking-wider text-[#288FC2] uppercase mb-1">
-              Built Around You.
-            </div>
-            <div className="text-[8.5pt] text-zinc-800 leading-relaxed">
-              Big Outsource Bldg., Block 4, Lot 1-4, Guevarra Subd., Brgy. Del Remedio, San Pablo City, Philippines 4000
-            </div>
-            <div className="text-[8.5pt] font-semibold text-[#288FC2] mt-1.5 flex items-center justify-center gap-3">
-              <span>+63 49 546 6399</span>
-              <span className="text-zinc-400">•</span>
-              <span>info@bigoutsource.com</span>
-              <span className="text-zinc-400">•</span>
-              <span>bigoutsource.com</span>
             </div>
           </div>
         </div>
@@ -942,7 +925,7 @@ function ScenarioSection({
   return (
     <section id={section.id} className="mb-8 scroll-mt-20">
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="text-sm font-bold tracking-tight uppercase text-muted-foreground flex items-center gap-1.5 print:text-[#233B74] print:font-bold print:border-b-2 print:border-[#233B74] print:pb-1.5 print:mt-4 print:mb-2 print:text-base">
+        <h2 className="text-sm font-bold tracking-tight uppercase text-muted-foreground flex items-center gap-1.5 print:text-[#233B74] print:font-bold print:border-none print:mt-4 print:mb-2 print:text-base">
           {section.key === 'quick_fix' && <IconBolt className="h-4 w-4 text-[#E07E3C] print:hidden" />}
           {section.label}
         </h2>
@@ -964,7 +947,7 @@ function ScenarioSection({
         <div className="rounded-xl border-2 border-[#E07E3C]/50 bg-[#E07E3C]/10 dark:bg-[#E07E3C]/15 p-4 shadow-sm space-y-3 print:border-none print:bg-transparent print:p-0 print:m-0 print:shadow-none">
           <RichText html={scenario.quick_fix} onImageClick={onImageClick} />
           {tickets.length > 0 && (
-            <div className="pt-2.5 border-t border-[#E07E3C]/20 flex flex-wrap items-center gap-2 print:border-t print:border-slate-200 print:pt-1.5">
+            <div className="pt-2.5 border-t border-[#E07E3C]/20 flex flex-wrap items-center gap-2 print:border-none print:pt-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-[#E07E3C] print:text-[#233B74] print:font-bold">
                 Reference Tickets:
               </span>
@@ -1397,17 +1380,17 @@ function ResolutionsList({
                 )}
 
                 {s.imageUrl && (
-                  <div className="mt-3 overflow-hidden rounded-lg border bg-muted/20 p-2 max-w-lg print:hidden">
+                  <div className="mt-3 overflow-hidden rounded-lg border bg-muted/20 p-2 max-w-lg print:max-w-none print:border-none print:bg-transparent print:p-0 print:my-3 print:break-inside-avoid">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={s.imageUrl}
                       alt={s.imageCaption || `Step ${stepNum} screenshot`}
-                      className="max-h-64 w-auto rounded object-contain cursor-zoom-in hover:opacity-90 transition-opacity bg-background"
+                      className="max-h-64 w-auto rounded object-contain cursor-zoom-in hover:opacity-90 transition-opacity bg-background print:max-h-96 print:w-auto print:rounded-none"
                       onClick={() => onImageClick(s.imageUrl!)}
                     />
                     {s.imageCaption && (
-                      <p className="mt-1.5 text-2xs font-medium text-muted-foreground flex items-center gap-1.5">
-                        <IconPhoto className="h-3 w-3 shrink-0 text-primary" />
+                      <p className="mt-1.5 text-2xs font-medium text-muted-foreground flex items-center gap-1.5 print:text-black print:text-xs print:italic print:mt-1">
+                        <IconPhoto className="h-3 w-3 shrink-0 text-primary print:hidden" />
                         <span>Figure: {s.imageCaption}</span>
                       </p>
                     )}
