@@ -82,6 +82,8 @@ docker compose exec -T db psql -U postgres -d postgres -c "
       EXECUTE 'ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname) || ';';
     END LOOP;
   END \$\$;
+" 2>/dev/null || true
+
 docker compose exec -T db psql -U supabase_admin -d postgres -c "
   ALTER TABLE pb_user_profiles DROP CONSTRAINT IF EXISTS pb_user_profiles_role_check;
   ALTER TABLE pb_config_history ADD COLUMN IF NOT EXISTS table_name TEXT, ADD COLUMN IF NOT EXISTS record_id UUID, ADD COLUMN IF NOT EXISTS changed_by UUID, ADD COLUMN IF NOT EXISTS old_data JSONB, ADD COLUMN IF NOT EXISTS new_data JSONB;
