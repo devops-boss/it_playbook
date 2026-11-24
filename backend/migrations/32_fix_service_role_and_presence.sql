@@ -177,3 +177,4 @@ GRANT EXECUTE ON FUNCTION remove_presence_heartbeat(TEXT) TO authenticated, anon
 GRANT EXECUTE ON FUNCTION admin_create_user(TEXT, TEXT, UUID, TEXT, UUID) TO authenticated, anon, service, service_role, postgres, supabase_admin;
 GRANT EXECUTE ON FUNCTION admin_update_user(UUID, TEXT, TEXT, UUID) TO authenticated, anon, service, service_role, postgres, supabase_admin;
 GRANT EXECUTE ON FUNCTION delete_user_account(UUID, UUID) TO authenticated, anon, service, service_role, postgres, supabase_admin;
+

@@ -64,6 +64,13 @@ until docker compose exec -T db pg_isready -U postgres -h localhost >/dev/null 2
   sleep 2
 done
 
+# Ensure public schema has unrestricted permissions for all roles
+docker compose exec -T db psql -U postgres -d postgres -c "
+  ALTER SCHEMA public OWNER TO postgres;
+  GRANT ALL ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
+  GRANT USAGE, CREATE ON SCHEMA public TO postgres, supabase_admin, anon, authenticated, service_role, service, public;
+" 2>/dev/null || true
+
 if [ -f "./scripts/migrate.sh" ]; then
   bash ./scripts/migrate.sh || true
 fi

@@ -23,7 +23,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MIGRATIONS_DIR="$PROJECT_ROOT/backend/migrations"
 
 DB_CONTAINER="${DB_CONTAINER:-bos-db}"
-DB_USER="${POSTGRES_USER:-supabase_admin}"
+DB_USER="${POSTGRES_USER:-postgres}"
 DB_NAME="${POSTGRES_DB:-postgres}"
 SKIP_FILES=("00_auth_stub.sql")
 
