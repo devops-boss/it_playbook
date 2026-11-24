@@ -271,14 +271,14 @@ DECLARE
   v_target_name TEXT;
 BEGIN
   -- 1. Check if caller is super admin
-  SELECT (role = 'Super Admin' OR role = 'admin') INTO v_is_super_admin
+  SELECT (lower(role) IN ('super admin', 'admin')) INTO v_is_super_admin
   FROM pb_user_profiles WHERE id = p_admin_id;
 
   IF NOT COALESCE(v_is_super_admin, FALSE) THEN
     SELECT EXISTS (
       SELECT 1 FROM pb_user_roles ur
       JOIN pb_roles r ON r.id = ur.role_id
-      WHERE ur.user_id = p_admin_id AND r.name IN ('Super Admin', 'Admin')
+      WHERE ur.user_id = p_admin_id AND lower(r.name) IN ('super admin', 'admin')
     ) INTO v_is_super_admin;
   END IF;
 
