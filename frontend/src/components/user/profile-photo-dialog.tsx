@@ -34,7 +34,7 @@ interface ProfilePhotoDialogProps {
 interface PresetAvatar {
   id: string;
   name: string;
-  category: 'heroes' | 'animals' | 'fun';
+  category: 'heroes' | 'animals';
   icon: string;
   bgGradient: [string, string];
 }
@@ -62,16 +62,6 @@ const PRESET_AVATARS: PresetAvatar[] = [
   { id: 'cat', name: 'Cat', category: 'animals', icon: '🐱', bgGradient: ['#db2777', '#9d174d'] },
   { id: 'dog', name: 'Dog', category: 'animals', icon: '🐶', bgGradient: ['#92400e', '#713f12'] },
   { id: 'dragon', name: 'Dragon', category: 'animals', icon: '🐲', bgGradient: ['#b91c1c', '#7f1d1d'] },
-
-  // Fun & Power
-  { id: 'rocket', name: 'Rocket', category: 'fun', icon: '🚀', bgGradient: ['#4338ca', '#312e81'] },
-  { id: 'lightning', name: 'Flash', category: 'fun', icon: '⚡', bgGradient: ['#ca8a04', '#854d0e'] },
-  { id: 'fire', name: 'Fire', category: 'fun', icon: '🔥', bgGradient: ['#dc2626', '#991b1b'] },
-  { id: 'crown', name: 'Crown', category: 'fun', icon: '👑', bgGradient: ['#d97706', '#92400e'] },
-  { id: 'coffee', name: 'Coffee', category: 'fun', icon: '☕', bgGradient: ['#78350f', '#451a03'] },
-  { id: 'shield', name: 'Guardian', category: 'fun', icon: '🛡️', bgGradient: ['#2563eb', '#1d4ed8'] },
-  { id: 'target', name: 'Target', category: 'fun', icon: '🎯', bgGradient: ['#e11d48', '#9f1239'] },
-  { id: 'pizza', name: 'Pizza', category: 'fun', icon: '🍕', bgGradient: ['#ea580c', '#c2410c'] },
 ];
 
 export function ProfilePhotoDialog({
@@ -85,7 +75,7 @@ export function ProfilePhotoDialog({
   const [preview, setPreview] = React.useState<string | null>(currentPhotoUrl);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [selectedPresetId, setSelectedPresetId] = React.useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = React.useState<'all' | 'heroes' | 'animals' | 'fun'>('all');
+  const [activeCategory, setActiveCategory] = React.useState<'all' | 'heroes' | 'animals'>('all');
   const [saving, setSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -371,7 +361,7 @@ export function ProfilePhotoDialog({
 
               {/* Category Filter Pills */}
               <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border text-2xs">
-                {(['all', 'heroes', 'animals', 'fun'] as const).map((cat) => (
+                {(['all', 'heroes', 'animals'] as const).map((cat) => (
                   <button
                     key={cat}
                     type="button"
@@ -383,7 +373,7 @@ export function ProfilePhotoDialog({
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
-                    {cat === 'heroes' ? 'Heroes' : cat === 'animals' ? 'Animals' : cat === 'fun' ? 'Icons' : 'All'}
+                    {cat === 'heroes' ? 'Heroes' : cat === 'animals' ? 'Animals' : 'All'}
                   </button>
                 ))}
               </div>
