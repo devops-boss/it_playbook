@@ -37,19 +37,18 @@ interface PresetAvatar {
   category: 'heroes' | 'animals' | 'fun';
   icon: string;
   bgGradient: [string, string];
-  isBatman?: boolean;
 }
 
 const PRESET_AVATARS: PresetAvatar[] = [
-  // Batman & Heroes
-  { id: 'batman', name: 'Batman', category: 'heroes', icon: '🦇', bgGradient: ['#1e222b', '#0a0b10'], isBatman: true },
-  { id: 'ninja', name: 'Cyber Ninja', category: 'heroes', icon: '🥷', bgGradient: ['#4c1d95', '#1e1b4b'] },
+  // Heroes & Tech
+  { id: 'ninja', name: 'Ninja', category: 'heroes', icon: '🥷', bgGradient: ['#4c1d95', '#1e1b4b'] },
+  { id: 'dev', name: 'Dev Ops', category: 'heroes', icon: '💻', bgGradient: ['#047857', '#064e3b'] },
   { id: 'wizard', name: 'Tech Wizard', category: 'heroes', icon: '🧙', bgGradient: ['#3730a3', '#1e1b4b'] },
   { id: 'robot', name: 'Cyber Bot', category: 'heroes', icon: '🤖', bgGradient: ['#0284c7', '#0f172a'] },
-  { id: 'dev', name: 'Dev Ops', category: 'heroes', icon: '💻', bgGradient: ['#047857', '#064e3b'] },
   { id: 'alien', name: 'Alien', category: 'heroes', icon: '👽', bgGradient: ['#15803d', '#052e16'] },
   { id: 'superhero', name: 'Hero', category: 'heroes', icon: '🦸', bgGradient: ['#1d4ed8', '#1e3a8a'] },
-  { id: 'gamer', name: 'Retro Gamer', category: 'heroes', icon: '👾', bgGradient: ['#7c3aed', '#4c1d95'] },
+  { id: 'gamer', name: 'Gamer', category: 'heroes', icon: '👾', bgGradient: ['#7c3aed', '#4c1d95'] },
+  { id: 'batman', name: 'Batman', category: 'heroes', icon: '🦇', bgGradient: ['#334155', '#0f172a'] },
 
   // Animals
   { id: 'lion', name: 'Lion', category: 'animals', icon: '🦁', bgGradient: ['#b45309', '#78350f'] },
@@ -116,43 +115,11 @@ export function ProfilePhotoDialog({
     ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
     ctx.fill();
 
-    if (preset.isBatman) {
-      // Golden oval background
-      ctx.save();
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.ellipse(size / 2, size / 2, 46, 28, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Sharp Batman silhouette
-      ctx.fillStyle = '#0f1117';
-      ctx.beginPath();
-      ctx.moveTo(64, 46);
-      ctx.lineTo(61, 41);
-      ctx.lineTo(63, 44);
-      ctx.lineTo(64, 44);
-      ctx.lineTo(65, 44);
-      ctx.lineTo(67, 41);
-      ctx.lineTo(64, 46);
-      // Left wing
-      ctx.bezierCurveTo(61, 46, 56, 44, 45, 46);
-      ctx.bezierCurveTo(49, 53, 44, 59, 28, 60);
-      ctx.bezierCurveTo(37, 72, 49, 73, 54, 83);
-      ctx.bezierCurveTo(57, 77, 60, 75, 64, 75);
-      // Right wing
-      ctx.bezierCurveTo(68, 75, 71, 77, 74, 83);
-      ctx.bezierCurveTo(79, 73, 91, 72, 100, 60);
-      ctx.bezierCurveTo(84, 59, 79, 53, 83, 46);
-      ctx.bezierCurveTo(72, 44, 67, 46, 64, 46);
-      ctx.fill();
-      ctx.restore();
-    } else {
-      // Draw centered crisp Emoji
-      ctx.font = '54px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(preset.icon, size / 2, size / 2 + 4);
-    }
+    // Draw centered crisp Emoji
+    ctx.font = '54px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(preset.icon, size / 2, size / 2 + 4);
 
     return canvas.toDataURL('image/png');
   };
@@ -448,13 +415,7 @@ export function ProfilePhotoDialog({
                         height: '40px',
                       }}
                     >
-                      {preset.isBatman ? (
-                        <div className="relative flex h-6 w-9 items-center justify-center rounded-full bg-amber-500">
-                          <span className="text-xs leading-none">🦇</span>
-                        </div>
-                      ) : (
-                        <span className="text-lg leading-none select-none">{preset.icon}</span>
-                      )}
+                      <span className="text-lg leading-none select-none">{preset.icon}</span>
 
                       {isSelected && (
                         <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs">
