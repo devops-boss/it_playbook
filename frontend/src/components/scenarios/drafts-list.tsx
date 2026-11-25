@@ -85,6 +85,9 @@ export function DraftsList({
       setMyDrafts((prev) => prev.filter((d) => d.id !== draftToDelete.id));
       setTeamDrafts((prev) => prev.filter((d) => d.id !== draftToDelete.id));
       setDraftToDelete(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('drafts-updated'));
+      }
     } catch (err: any) {
       toast.error(err?.message || 'Failed to remove draft.');
     } finally {

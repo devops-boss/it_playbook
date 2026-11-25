@@ -169,6 +169,10 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         throw new Error(data.error || 'Failed to delete playbook');
       }
       toast.success('Playbook deleted successfully');
+      hasEditsRef.current = false;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('drafts-updated'));
+      }
       setShowDeleteModal(false);
       router.push('/');
       router.refresh();
@@ -191,6 +195,31 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   });
   const [confirmPublishOpen, setConfirmPublishOpen] = React.useState(false);
   const [confirmDraftOpen, setConfirmDraftOpen] = React.useState(false);
+
+  // Unsaved changes & navigation intercept states
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = React.useState(false);
+  const [pendingDestination, setPendingDestination] = React.useState<string | null>(null);
+  const initialSnapshotRef = React.useRef<string | null>(null);
+  const isLoadedRef = React.useRef(!scenario);
+
+  const getContentSnapshot = React.useCallback((st: EditorState, fc: any) => {
+    return JSON.stringify({
+      title: (st.title || '').trim(),
+      summary: (st.summary || '').trim(),
+      quick_fix: (st.quick_fix || '').trim(),
+      symptoms: (st.symptoms || '').trim(),
+      causes: (st.causes || '').trim(),
+      workarounds: (st.workarounds || '').trim(),
+      resolutions: (st.resolutions || '').trim(),
+      escalation: (st.escalation || '').trim(),
+      prevention: (st.prevention || '').trim(),
+      custom_sections: st.custom_sections || {},
+      tags: st.tags || [],
+      account_ids: st.account_ids || [],
+      nodes: fc?.nodes?.length ?? 0,
+      edges: fc?.edges?.length ?? 0,
+    });
+  }, []);
 
   const handlePlaybookTypeChange = (type: 'scenario' | 'documentation') => {
     setPlaybookType(type);
@@ -294,8 +323,20 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           },
         }));
       }
+      if (!isLoadedRef.current) {
+        isLoadedRef.current = true;
+        initialSnapshotRef.current = getContentSnapshot(
+          {
+            ...state,
+            title: initialTitle ?? '',
+            account_ids: initialAccountId ? (isGlobalInitial ? [] : [initialAccountId]) : [],
+            is_global: isGlobalInitial,
+          },
+          { nodes: [], edges: [] },
+        );
+      }
     }
-  }, [scenario, initialAccountId, initialCategoryId, initialTitle]);
+  }, [scenario, initialAccountId, initialCategoryId, initialTitle, isGlobalInitial, getContentSnapshot]);
 
   // Load custom criteria values, flowchart, and scenario accounts
   React.useEffect(() => {
@@ -339,16 +380,172 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       } else if (scenario.account_id) {
         setState((prev) => ({ ...prev, account_ids: [scenario.account_id!] }));
       }
+
+      isLoadedRef.current = true;
+      initialSnapshotRef.current = getContentSnapshot(
+        {
+          ...state,
+          account_ids: linkedAccountIds.length > 0 ? linkedAccountIds : (scenario.account_id ? [scenario.account_id] : []),
+        },
+        flow.data ?? { nodes: [], edges: [] },
+      );
     };
 
     void load();
     return () => {
       cancelled = true;
     };
-  }, [scenario]);
+  }, [scenario, getContentSnapshot]);
 
   const update = (patch: Partial<EditorState>) =>
     setState((prev) => ({ ...prev, ...patch }));
+
+  const hasUserEditedOrAddedText = React.useMemo(() => {
+    if (!isLoadedRef.current) return false;
+
+    // For brand new playbook: check if user typed anything
+    if (!scenario) {
+      return Boolean(
+        (state.title && state.title.trim().length > 0 && state.title !== (initialTitle ?? '')) ||
+        (state.summary && state.summary.trim().length > 0) ||
+        (state.quick_fix && state.quick_fix.trim().length > 0) ||
+        (state.symptoms && state.symptoms.trim().length > 0) ||
+        (state.causes && state.causes.trim().length > 0) ||
+        (state.workarounds && state.workarounds.trim().length > 0) ||
+        (state.resolutions && state.resolutions.trim().length > 0) ||
+        (state.escalation && state.escalation.trim().length > 0) ||
+        (state.prevention && state.prevention.trim().length > 0) ||
+        (state.tags && state.tags.length > 0) ||
+        (state.custom_sections &&
+          Object.values(state.custom_sections).some(
+            (v) => typeof v === 'string' && v.trim().length > 0 && v !== 'scenario' && v !== 'documentation',
+          )) ||
+        (flowchart?.nodes && flowchart.nodes.length > 0)
+      );
+    }
+
+    // For existing playbook: compare with initial snapshot
+    if (!initialSnapshotRef.current) return false;
+    const currentSnapshot = getContentSnapshot(state, flowchart);
+    return currentSnapshot !== initialSnapshotRef.current;
+  }, [scenario, state, flowchart, initialTitle, getContentSnapshot]);
+
+  const hasEditsRef = React.useRef(hasUserEditedOrAddedText);
+  React.useEffect(() => {
+    hasEditsRef.current = hasUserEditedOrAddedText;
+  }, [hasUserEditedOrAddedText]);
+
+  // Click interceptor for links across app (sidebar, top bar, logo, breadcrumbs, etc.)
+  React.useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      if (!hasEditsRef.current) return;
+
+      const anchor = (e.target as HTMLElement).closest('a');
+      if (!anchor) return;
+
+      const rawHref = anchor.getAttribute('href');
+      if (!rawHref) return;
+
+      if (rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
+      if (anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+
+      try {
+        const destUrl = new URL(anchor.href, window.location.href);
+        if (
+          destUrl.origin === window.location.origin &&
+          destUrl.pathname === window.location.pathname &&
+          destUrl.search === window.location.search
+        ) {
+          return;
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        setPendingDestination(destUrl.pathname + destUrl.search + destUrl.hash);
+        setLeaveConfirmOpen(true);
+      } catch {}
+    };
+
+    window.addEventListener('click', handleAnchorClick, true);
+    return () => {
+      window.removeEventListener('click', handleAnchorClick, true);
+    };
+  }, []);
+
+  // Handle browser back button and tab close
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasEditsRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (hasEditsRef.current) {
+        window.history.pushState(null, '', window.location.href);
+        setPendingDestination('__BACK__');
+        setLeaveConfirmOpen(true);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const handleSaveDraftAndLeave = async () => {
+    setSaving(true);
+    try {
+      const fallbackTitle = state.title.trim() || 'Untitled Draft';
+      const res = await persist(false, 'draft', {
+        silent: true,
+        defaultTitle: fallbackTitle,
+      });
+
+      if (res && res.id) {
+        toast.success('Playbook saved as draft');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('drafts-updated'));
+        }
+        hasEditsRef.current = false;
+        setLeaveConfirmOpen(false);
+
+        if (pendingDestination === '__BACK__') {
+          window.history.back();
+        } else if (pendingDestination) {
+          window.location.href = pendingDestination;
+        }
+      } else {
+        toast.error('Failed to save draft. Please try again.');
+        setSaving(false);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Error saving draft');
+      setSaving(false);
+    }
+  };
+
+  const handleDiscardAndLeave = () => {
+    hasEditsRef.current = false;
+    setLeaveConfirmOpen(false);
+
+    if (pendingDestination === '__BACK__') {
+      window.history.back();
+    } else if (pendingDestination) {
+      window.location.href = pendingDestination;
+    }
+  };
+
+  const handleCancelLeave = () => {
+    setLeaveConfirmOpen(false);
+    setPendingDestination(null);
+  };
 
   // Steps - Adapting for Troubleshooting Scenario vs Documentation / SOP
   const steps = React.useMemo(() => {
@@ -605,6 +802,12 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           toast.success('Changes saved');
         }
 
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('drafts-updated'));
+        }
+        initialSnapshotRef.current = getContentSnapshot(state, flowchart);
+        hasEditsRef.current = false;
+
         if (!options?.silent) {
           router.refresh();
         }
@@ -623,7 +826,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         setSaving(false);
       }
     },
-    [state, classification, flowchart, scenario, currentScenarioId, userId, router, playbookType, categories, fields, optionsByField],
+    [state, classification, flowchart, scenario, currentScenarioId, userId, router, playbookType, categories, fields, optionsByField, getContentSnapshot],
   );
 
   const publish = async () => {
@@ -637,6 +840,10 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
     const res = await persist(false, 'published');
     if (res && (res.slug || res.id)) {
+      hasEditsRef.current = false;
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('drafts-updated'));
+      }
       const targetSlug = res.slug || res.id;
       toast.success(
         playbookType === 'documentation'
@@ -661,6 +868,9 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
       });
       if (error) throw error;
       toast.success('Scenario duplicated as draft');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('drafts-updated'));
+      }
       router.push(`/scenarios/${newId}/edit`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not duplicate.');
@@ -1236,6 +1446,10 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 setSaving(true);
                 const res = await persist(false, 'draft');
                 if (res && res.id) {
+                  hasEditsRef.current = false;
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('drafts-updated'));
+                  }
                   toast.success('Draft saved successfully! Redirecting to My Drafts...');
                   setConfirmDraftOpen(false);
                   window.location.href = '/drafts';
@@ -1252,6 +1466,85 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 </>
               ) : (
                 'Confirm & Save Draft'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog: Save as Draft on Navigation */}
+      <Dialog
+        open={leaveConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open && !saving) {
+            setLeaveConfirmOpen(false);
+            setPendingDestination(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <IconDeviceFloppy className="h-4.5 w-4.5 text-primary" />
+              Save as Draft?
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              You have unsaved changes in this playbook. Would you like to save it as a draft before leaving?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2.5 px-3 rounded-md bg-muted/40 border border-border/60 text-xs space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-foreground truncate max-w-[260px]">
+                {state.title.trim() || 'Untitled Playbook Draft'}
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-semibold border border-amber-500/30">
+                Draft
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Drafts are private to you and can be resumed or published at any time from My Drafts.
+            </p>
+          </div>
+
+          <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDiscardAndLeave}
+              disabled={saving}
+              className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              Discard &amp; Leave
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleCancelLeave}
+              disabled={saving}
+              className="text-xs"
+            >
+              Keep Editing
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveDraftAndLeave}
+              disabled={saving}
+              className="gap-1.5 text-xs font-semibold bg-[#233B74] hover:bg-[#1b2e5c] text-white"
+            >
+              {saving ? (
+                <>
+                  <IconLoader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving Draft...
+                </>
+              ) : (
+                <>
+                  <IconDeviceFloppy className="h-3.5 w-3.5" />
+                  Save as Draft
+                </>
               )}
             </Button>
           </DialogFooter>

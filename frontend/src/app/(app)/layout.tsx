@@ -28,21 +28,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     getCriteriaFields('scenarios'),
     (async () => {
       const supabase = createClient();
-      const canSeeAllDrafts =
-        user.isSuperAdmin ||
-        user.permissions.global.has('edit_any_scenario');
-
-      let query = supabase
+      const { count } = await supabase
         .from('pb_scenarios')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'draft')
+        .eq('created_by', user.id)
         .is('deleted_at', null);
 
-      if (!canSeeAllDrafts) {
-        query = query.eq('created_by', user.id);
-      }
-
-      const { count } = await query;
       return count ?? 0;
     })(),
   ]);

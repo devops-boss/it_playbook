@@ -731,8 +731,10 @@ export function UsersPanel({
                 Manage roles, toggle security permissions, and scope client account access.
               </p>
             </div>
-            <div className="relative w-full sm:w-64">
-              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <div className="relative w-full sm:w-64 flex items-center">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-muted-foreground">
+                <IconSearch className="h-3.5 w-3.5" />
+              </div>
               <Input
                 placeholder="Search user, email, or role..."
                 value={userSearch}
@@ -925,8 +927,10 @@ export function UsersPanel({
             <div className="flex flex-col gap-3 py-2 flex-1 overflow-hidden">
               {/* Search & Bulk Select Toolbar */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5">
-                <div className="relative w-full sm:w-64">
-                  <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <div className="relative w-full sm:w-64 flex items-center">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-muted-foreground">
+                    <IconSearch className="h-3.5 w-3.5" />
+                  </div>
                   <Input
                     placeholder="Search accounts..."
                     value={modalAccountSearch}

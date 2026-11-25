@@ -53,9 +53,34 @@ export function Sidebar({ accounts = [], categories, user, draftsCount = 0 }: Si
   const [accountsOpen, setAccountsOpen] = React.useState(true);
   const [liveDraftsCount, setLiveDraftsCount] = React.useState(draftsCount);
 
+  const fetchLiveDraftsCount = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/drafts/count', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.count === 'number') {
+          setLiveDraftsCount(data.count);
+        }
+      }
+    } catch {}
+  }, []);
+
   React.useEffect(() => {
     setLiveDraftsCount(draftsCount);
   }, [draftsCount]);
+
+  React.useEffect(() => {
+    fetchLiveDraftsCount();
+    const handleUpdate = () => {
+      fetchLiveDraftsCount();
+    };
+    window.addEventListener('drafts-updated', handleUpdate);
+    window.addEventListener('focus', handleUpdate);
+    return () => {
+      window.removeEventListener('drafts-updated', handleUpdate);
+      window.removeEventListener('focus', handleUpdate);
+    };
+  }, [fetchLiveDraftsCount, pathname]);
 
   const sortedAccounts = React.useMemo(
     () => [...accounts].sort((a, b) => a.name.localeCompare(b.name)),
@@ -118,14 +143,27 @@ export function Sidebar({ accounts = [], categories, user, draftsCount = 0 }: Si
                     <div className="relative flex items-center justify-center">
                       <item.icon className="h-4 w-4 shrink-0" />
                       {collapsed && isDrafts && liveDraftsCount > 0 && (
-                        <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-background" />
+                        <span
+                          className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 text-white text-[9px] font-bold px-1 ring-2 ring-background leading-none"
+                          title={`${liveDraftsCount} active draft${liveDraftsCount === 1 ? '' : 's'}`}
+                        >
+                          {liveDraftsCount > 9 ? '9+' : liveDraftsCount}
+                        </span>
                       )}
                     </div>
                     {!collapsed && <span className="truncate">{item.label}</span>}
                   </div>
 
-                  {!collapsed && isDrafts && liveDraftsCount > 0 && (
-                    <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500 tabular-nums leading-none">
+                  {!collapsed && isDrafts && (
+                    <span
+                      className={cn(
+                        'ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none transition-colors',
+                        liveDraftsCount > 0
+                          ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30 font-bold'
+                          : 'bg-muted/60 text-muted-foreground/70 border border-border/40',
+                      )}
+                      title={`${liveDraftsCount} active draft${liveDraftsCount === 1 ? '' : 's'}`}
+                    >
                       {liveDraftsCount}
                     </span>
                   )}

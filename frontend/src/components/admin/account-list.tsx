@@ -141,8 +141,10 @@ export function AccountList({ accounts, counts }: AccountListProps) {
       </div>
 
       {/* Search Bar */}
-      <div className="mb-4 relative">
-        <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <div className="mb-4 relative flex items-center">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-muted-foreground">
+          <IconSearch className="h-3.5 w-3.5" />
+        </div>
         <Input
           placeholder="Filter by account name, code, or description..."
           value={search}
