@@ -144,7 +144,7 @@ export function Sidebar({ accounts = [], categories, user, draftsCount = 0 }: Si
                       <item.icon className="h-4 w-4 shrink-0" />
                       {collapsed && isDrafts && liveDraftsCount > 0 && (
                         <span
-                          className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 text-white text-[9px] font-bold px-1 ring-2 ring-background leading-none"
+                          className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 text-white text-[9px] font-bold px-1 ring-2 ring-background leading-none"
                           title={`${liveDraftsCount} active draft${liveDraftsCount === 1 ? '' : 's'}`}
                         >
                           {liveDraftsCount > 9 ? '9+' : liveDraftsCount}
@@ -159,7 +159,7 @@ export function Sidebar({ accounts = [], categories, user, draftsCount = 0 }: Si
                       className={cn(
                         'ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none transition-colors',
                         liveDraftsCount > 0
-                          ? 'bg-amber-500/20 text-amber-500 border border-amber-500/30 font-bold'
+                          ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30 font-bold'
                           : 'bg-muted/60 text-muted-foreground/70 border border-border/40',
                       )}
                       title={`${liveDraftsCount} active draft${liveDraftsCount === 1 ? '' : 's'}`}
