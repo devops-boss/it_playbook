@@ -469,10 +469,14 @@ export function ScenarioReader({
                 <img
                   src={authorPhotoUrl}
                   alt={authorName || 'Author'}
-                  className="h-4.5 w-4.5 rounded-full object-cover ring-1 ring-border/50 shrink-0"
+                  className="h-5 w-5 rounded-full object-cover ring-1 ring-border/50 shrink-0"
+                  style={{ width: '20px', height: '20px', maxWidth: '20px', maxHeight: '20px' }}
                 />
               ) : (
-                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary ring-1 ring-primary/20">
+                <span
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary ring-1 ring-primary/20"
+                  style={{ width: '20px', height: '20px' }}
+                >
                   {(authorName || 'IT').slice(0, 2).toUpperCase()}
                 </span>
               )}
@@ -652,10 +656,14 @@ export function ScenarioReader({
                         <img
                           src={authorPhotoUrl}
                           alt=""
-                          className="h-4.5 w-4.5 rounded-full object-cover shrink-0 ring-1 ring-slate-300"
+                          className="h-5 w-5 rounded-full object-cover shrink-0 ring-1 ring-slate-300"
+                          style={{ width: '20px', height: '20px', maxWidth: '20px', maxHeight: '20px' }}
                         />
                       ) : (
-                        <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-700">
+                        <span
+                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-700"
+                          style={{ width: '20px', height: '20px' }}
+                        >
                           {(authorName || 'IT').slice(0, 2).toUpperCase()}
                         </span>
                       )}

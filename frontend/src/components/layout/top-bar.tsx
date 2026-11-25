@@ -343,7 +343,8 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
                 <img
                   src={photoUrl}
                   alt={user.displayName}
-                  className="h-6 w-6 rounded-full object-cover ring-1 ring-border/60"
+                  className="h-6 w-6 rounded-full object-cover ring-1 ring-border/60 shrink-0"
+                  style={{ width: '24px', height: '24px', maxWidth: '24px', maxHeight: '24px' }}
                 />
               ) : (
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
