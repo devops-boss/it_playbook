@@ -34,6 +34,7 @@ export interface AdminUser {
   id: string;
   email: string | null;
   display_name: string | null;
+  photo_url?: string | null;
   is_active: boolean;
   last_login_at: string | null;
   created_at: string;
@@ -124,6 +125,7 @@ export async function getAdminData(): Promise<AdminData> {
     id: profile.id as string,
     email: (profile.email as string) ?? null,
     display_name: (profile.display_name as string) ?? null,
+    photo_url: (profile.photo_url as string) ?? null,
     is_active: (profile.is_active as boolean) ?? true,
     last_login_at: (profile.last_login_at as string) ?? null,
     created_at: profile.created_at as string,

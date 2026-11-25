@@ -316,6 +316,7 @@ interface UsersPanelProps {
     id: string;
     email: string | null;
     display_name: string | null;
+    photo_url?: string | null;
     is_active: boolean;
     last_login_at: string | null;
     role_ids: string[];
@@ -774,8 +775,17 @@ export function UsersPanel({
                       >
                         {/* 1. User Identity */}
                         <div className="flex items-center gap-3 min-w-0 pr-3">
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold ring-1 ring-primary/20">
-                            {(user.display_name || user.email || 'U').slice(0, 2).toUpperCase()}
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold ring-1 ring-primary/20 overflow-hidden">
+                            {user.photo_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={user.photo_url}
+                                alt={user.display_name || ''}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              (user.display_name || user.email || 'U').slice(0, 2).toUpperCase()
+                            )}
                           </div>
                           <div className="flex flex-col min-w-0">
                             <div className="flex items-center gap-1.5">

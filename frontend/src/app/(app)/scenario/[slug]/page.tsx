@@ -74,6 +74,7 @@ export default async function ScenarioPage({
     <ScenarioReader
       scenario={bundle.scenario}
       authorName={bundle.authorName}
+      authorPhotoUrl={bundle.authorPhotoUrl}
       chips={chips}
       sections={bundle.sections}
       tickets={bundle.tickets}

@@ -78,6 +78,7 @@ export interface ScenarioReaderProps {
   siblingScenarios?: { id: string; slug: string; title: string }[];
   nextScenario?: { id: string; slug: string; title: string } | null;
   authorName?: string | null;
+  authorPhotoUrl?: string | null;
 }
 
 type ReadingMode = 'quick' | 'full';
@@ -101,6 +102,7 @@ export function ScenarioReader({
   siblingScenarios = [],
   nextScenario,
   authorName,
+  authorPhotoUrl,
 }: ScenarioReaderProps) {
   const router = useRouter();
   const [mode, setModeState] = React.useState<ReadingMode>('quick');
@@ -461,8 +463,19 @@ export function ScenarioReader({
 
           <div className="mt-3 flex flex-wrap items-center gap-3 text-2xs text-muted-foreground">
             {/* Author and Date Created */}
-            <span className="flex items-center gap-1 font-medium text-foreground">
-              <IconUser className="h-3.5 w-3.5 text-primary" />
+            <span className="flex items-center gap-1.5 font-medium text-foreground">
+              {authorPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={authorPhotoUrl}
+                  alt={authorName || 'Author'}
+                  className="h-4.5 w-4.5 rounded-full object-cover ring-1 ring-border/50 shrink-0"
+                />
+              ) : (
+                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary ring-1 ring-primary/20">
+                  {(authorName || 'IT').slice(0, 2).toUpperCase()}
+                </span>
+              )}
               <span>Created by {authorName || 'IT Operations Team'}</span>
             </span>
             <span className="flex items-center gap-1">
@@ -632,7 +645,23 @@ export function ScenarioReader({
                 </tr>
                 <tr className="border-b border-slate-200">
                   <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Author / Created By:</td>
-                  <td className="p-1.5 text-black">{authorName || 'IT Operations Team'}</td>
+                  <td className="p-1.5 text-black">
+                    <div className="flex items-center gap-1.5">
+                      {authorPhotoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={authorPhotoUrl}
+                          alt=""
+                          className="h-4.5 w-4.5 rounded-full object-cover shrink-0 ring-1 ring-slate-300"
+                        />
+                      ) : (
+                        <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-700">
+                          {(authorName || 'IT').slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                      <span>{authorName || 'IT Operations Team'}</span>
+                    </div>
+                  </td>
                   <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Date Created:</td>
                   <td className="p-1.5 text-black">{formatDate(scenario.created_at)}</td>
                 </tr>

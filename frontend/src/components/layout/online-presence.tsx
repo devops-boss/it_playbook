@@ -287,9 +287,14 @@ export function OnlinePresence({ currentUser }: OnlinePresenceProps) {
                   isMe ? 'bg-primary/5 border border-primary/15' : 'hover:bg-muted/50 border border-transparent'
                 )}
               >
-                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#233B74]/15 text-[#233B74] dark:bg-primary/20 dark:text-primary font-bold text-xs">
-                  {(u.displayName || 'U').slice(0, 2).toUpperCase()}
-                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#233B74]/15 text-[#233B74] dark:bg-primary/20 dark:text-primary font-bold text-xs overflow-hidden ring-1 ring-border/50">
+                  {u.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={u.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (u.displayName || 'U').slice(0, 2).toUpperCase()
+                  )}
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background z-10" />
                 </div>
                 <div className="flex flex-col min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">

@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  IconCamera,
   IconCheck,
   IconChevronDown,
   IconMenu2,
@@ -40,6 +41,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { Account } from '@/types/database';
 import { OnlinePresence } from './online-presence';
+import { ProfilePhotoDialog } from '@/components/user/profile-photo-dialog';
 
 interface TopBarProps {
   accounts: Account[];
@@ -65,6 +67,12 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const [accountFilter, setAccountFilter] = React.useState('');
   const [showSignOutDialog, setShowSignOutDialog] = React.useState(false);
+  const [showPhotoDialog, setShowPhotoDialog] = React.useState(false);
+  const [photoUrl, setPhotoUrl] = React.useState<string | null>(user.photoUrl);
+
+  React.useEffect(() => {
+    setPhotoUrl(user.photoUrl);
+  }, [user.photoUrl]);
   const selectedAccountIds = useAppStore((s) => s.selectedAccountIds);
   const accountMatch = useAppStore((s) => s.accountMatch);
   const setAccountMatch = useAppStore((s) => s.setAccountMatch);
@@ -330,15 +338,15 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
               size="sm"
               className="h-8 gap-2 px-1.5 text-xs font-normal"
             >
-              {user.photoUrl ? (
+              {photoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={user.photoUrl}
-                  alt=""
-                  className="h-5 w-5 rounded-full"
+                  src={photoUrl}
+                  alt={user.displayName}
+                  className="h-6 w-6 rounded-full object-cover ring-1 ring-border/60"
                 />
               ) : (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
                   {user.displayName.slice(0, 2).toUpperCase()}
                 </span>
               )}
@@ -359,6 +367,14 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
                 ))}
               </span>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="gap-2 cursor-pointer font-medium text-xs"
+              onSelect={() => setShowPhotoDialog(true)}
+            >
+              <IconCamera className="h-4 w-4 text-primary" />
+              <span>Upload Profile Picture</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             {user.isSuperAdmin && (
               <DropdownMenuItem onSelect={() => router.push('/admin/settings')}>
@@ -383,6 +399,14 @@ export function TopBar({ accounts, user, onOpenPalette }: TopBarProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <ProfilePhotoDialog
+          open={showPhotoDialog}
+          onOpenChange={setShowPhotoDialog}
+          currentPhotoUrl={photoUrl}
+          displayName={user.displayName}
+          onPhotoUpdated={(newUrl) => setPhotoUrl(newUrl)}
+        />
 
         <Dialog open={showSignOutDialog} onOpenChange={setShowSignOutDialog}>
           <DialogContent className="sm:max-w-md">

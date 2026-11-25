@@ -14,6 +14,7 @@ import type {
 export interface ScenarioBundle {
   scenario: Scenario;
   authorName: string | null;
+  authorPhotoUrl: string | null;
   sections: SectionDefinition[];
   tickets: SampleTicket[];
   attachments: Attachment[];
@@ -87,7 +88,7 @@ export async function getScenarioBundle(slug: string): Promise<ScenarioBundle | 
     scenario.created_by
       ? supabase
           .from('pb_user_profiles')
-          .select('display_name, email')
+          .select('display_name, email, photo_url')
           .eq('id', scenario.created_by)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -204,9 +205,12 @@ export async function getScenarioBundle(slug: string): Promise<ScenarioBundle | 
     authorProfile?.data?.display_name ||
     (authorProfile?.data?.email ? authorProfile.data.email.split('@')[0] : null);
 
+  const authorPhotoUrl = (authorProfile?.data?.photo_url as string | null) || null;
+
   return {
     scenario: scenario as Scenario,
     authorName,
+    authorPhotoUrl,
     sections: (sections.data ?? []) as SectionDefinition[],
     tickets: (tickets.data ?? []) as SampleTicket[],
     attachments: attachmentsWithUrls,
