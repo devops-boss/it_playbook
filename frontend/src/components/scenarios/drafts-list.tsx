@@ -48,24 +48,16 @@ export interface DraftItemData {
 
 interface DraftsListProps {
   myDrafts: DraftItemData[];
-  teamDrafts: DraftItemData[];
-  canSeeAllDrafts: boolean;
   currentUserId: string;
 }
 
 export function DraftsList({
   myDrafts: initialMyDrafts,
-  teamDrafts: initialTeamDrafts,
-  canSeeAllDrafts,
   currentUserId,
 }: DraftsListProps) {
-  const [activeTab, setActiveTab] = React.useState<'my' | 'all'>('my');
   const [myDrafts, setMyDrafts] = React.useState<DraftItemData[]>(initialMyDrafts);
-  const [teamDrafts, setTeamDrafts] = React.useState<DraftItemData[]>(initialTeamDrafts);
   const [draftToDelete, setDraftToDelete] = React.useState<DraftItemData | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-
-  const currentList = activeTab === 'my' ? myDrafts : teamDrafts;
 
   const confirmDelete = async () => {
     if (!draftToDelete) return;
@@ -83,7 +75,6 @@ export function DraftsList({
 
       toast.success('Draft removed');
       setMyDrafts((prev) => prev.filter((d) => d.id !== draftToDelete.id));
-      setTeamDrafts((prev) => prev.filter((d) => d.id !== draftToDelete.id));
       setDraftToDelete(null);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('drafts-updated'));
@@ -97,7 +88,7 @@ export function DraftsList({
 
   return (
     <div className="space-y-4">
-      {/* Header Tabs & Actions */}
+      {/* Header & Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
         <div>
           <div className="flex items-center gap-2">
@@ -112,33 +103,6 @@ export function DraftsList({
         </div>
 
         <div className="flex items-center gap-2">
-          {canSeeAllDrafts && (
-            <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setActiveTab('my')}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-                  activeTab === 'my'
-                    ? 'bg-background text-foreground shadow-2xs font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                My Drafts ({myDrafts.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('all')}
-                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
-                  activeTab === 'all'
-                    ? 'bg-background text-foreground shadow-2xs font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                All Team Drafts ({teamDrafts.length})
-              </button>
-            </div>
-          )}
-
           <Button asChild size="sm" className="h-8 gap-1.5 text-xs bg-[#233B74] hover:bg-[#1b2e5c] text-white">
             <Link href="/scenarios/new">
               <IconPlus className="h-3.5 w-3.5" />
@@ -152,20 +116,16 @@ export function DraftsList({
       <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-2xs text-muted-foreground">
         <IconLock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span>
-          Drafts are private to you (and workspace administrators) until you choose to publish them to the live knowledge base.
+          Drafts are private to you until you choose to publish them to the live knowledge base.
         </span>
       </div>
 
       {/* Drafts List */}
-      {currentList.length === 0 ? (
+      {myDrafts.length === 0 ? (
         <EmptyState
           icon={IconFileText}
-          title={activeTab === 'my' ? 'No unpublished drafts' : 'No team drafts found'}
-          description={
-            activeTab === 'my'
-              ? 'When you start drafting a playbook or documentation guide, it will be saved here until published.'
-              : 'There are no drafts created by team members waiting for review.'
-          }
+          title="No unpublished drafts"
+          description="When you start drafting a playbook or documentation guide, it will be saved here until published."
           actionLabel="Create New Playbook"
           onAction={() => {
             window.location.href = '/scenarios/new';
@@ -173,7 +133,7 @@ export function DraftsList({
         />
       ) : (
         <div className="grid gap-3">
-          {currentList.map((draft) => {
+          {myDrafts.map((draft) => {
             const rawType = (draft.custom_sections as any)?.playbook_type;
             const isDoc =
               rawType === 'documentation' ||

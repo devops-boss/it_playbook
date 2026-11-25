@@ -11,19 +11,14 @@ export default async function MyDraftsPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  const canSeeAllDrafts =
-    user.isSuperAdmin ||
-    user.permissions.global.has('edit_any_scenario');
-
   let myDraftsRows: any[] = [];
-  let teamDraftsRows: any[] = [];
   let accounts: any[] = [];
   let categories: any[] = [];
 
   try {
     const supabase = createClient();
 
-    const [myDraftsRes, teamDraftsRes, accs, cats] = await Promise.all([
+    const [myDraftsRes, accs, cats] = await Promise.all([
       supabase
         .from('pb_scenarios')
         .select(
@@ -33,22 +28,11 @@ export default async function MyDraftsPage() {
         .eq('created_by', user.id)
         .is('deleted_at', null)
         .order('updated_at', { ascending: false }),
-      canSeeAllDrafts
-        ? supabase
-            .from('pb_scenarios')
-            .select(
-              'id, title, slug, summary, quick_fix, status, updated_at, created_at, created_by, account_id, category_id, is_global, tags, custom_sections',
-            )
-            .eq('status', 'draft')
-            .is('deleted_at', null)
-            .order('updated_at', { ascending: false })
-        : Promise.resolve({ data: [] }),
       getAccounts().catch(() => []),
       getCategories().catch(() => []),
     ]);
 
     myDraftsRows = myDraftsRes.data ?? [];
-    teamDraftsRows = teamDraftsRes.data ?? [];
     accounts = accs;
     categories = cats;
   } catch (err) {
@@ -81,15 +65,12 @@ export default async function MyDraftsPage() {
   });
 
   const myDrafts: DraftItemData[] = myDraftsRows.map(mapDraftItem);
-  const teamDrafts: DraftItemData[] = teamDraftsRows.map(mapDraftItem);
 
   return (
     <div className="p-6">
       <div className="mx-auto max-w-4xl">
         <DraftsList
           myDrafts={myDrafts}
-          teamDrafts={teamDrafts}
-          canSeeAllDrafts={canSeeAllDrafts}
           currentUserId={user.id}
         />
       </div>
