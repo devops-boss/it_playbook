@@ -134,6 +134,52 @@ export async function POST(request: NextRequest) {
       console.warn('Non-fatal error syncing flowchart:', fcErr);
     }
 
+    // Sync sample tickets (pb_sample_tickets)
+    try {
+      if (Array.isArray(body.tickets) && body.tickets.length > 0) {
+        const { data: existingTickets } = await supabase
+          .from('pb_sample_tickets')
+          .select('ticket_id')
+          .eq('scenario_id', scenarioId);
+        const existingSet = new Set((existingTickets ?? []).map((t: any) => String(t.ticket_id || '').toUpperCase()));
+
+        const toInsert = body.tickets
+          .map((t: any) => (typeof t === 'string' ? t.trim() : String(t?.ticket_id || '').trim()))
+          .filter((t: string) => t && !existingSet.has(t.toUpperCase()))
+          .map((ticketId: string) => ({
+            scenario_id: scenarioId,
+            ticket_id: ticketId,
+          }));
+
+        if (toInsert.length > 0) {
+          await supabase.from('pb_sample_tickets').insert(toInsert);
+        }
+      }
+    } catch (tkErr) {
+      console.warn('Non-fatal error syncing sample tickets:', tkErr);
+    }
+
+    // Sync related scenarios (pb_related_scenarios)
+    try {
+      if (Array.isArray(body.related_scenario_ids)) {
+        await supabase.from('pb_related_scenarios').delete().eq('scenario_id', scenarioId);
+        if (body.related_scenario_ids.length > 0) {
+          const relRows = body.related_scenario_ids
+            .filter((relId: string) => relId && relId !== scenarioId)
+            .map((relId: string) => ({
+              scenario_id: scenarioId,
+              related_scenario_id: relId,
+              relation_type: 'related',
+            }));
+          if (relRows.length > 0) {
+            await supabase.from('pb_related_scenarios').insert(relRows);
+          }
+        }
+      }
+    } catch (relErr) {
+      console.warn('Non-fatal error syncing related scenarios:', relErr);
+    }
+
     return NextResponse.json({
       success: true,
       id: scenarioId,

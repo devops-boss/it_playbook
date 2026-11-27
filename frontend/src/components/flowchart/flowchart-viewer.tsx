@@ -903,3 +903,282 @@ function FlowchartTextListView({
     </div>
   );
 }
+
+/**
+ * High-fidelity print & PDF view of the troubleshooting flowchart.
+ * Renders both the full visual SVG tree and a structured decision branch table.
+ */
+export function FlowchartPrintView({
+  nodes,
+  edges,
+  nodeTypes,
+}: {
+  nodes: FlowNode[];
+  edges: { id: string; source: string; target: string; label?: string }[];
+  nodeTypes: { key: string; label: string; color: string | null; icon: string | null }[];
+}) {
+  const typeByKey = React.useMemo(() => {
+    const map = new Map<string, { label: string; color: string }>();
+    for (const t of nodeTypes) {
+      map.set(t.key, { label: t.label, color: t.color ?? '#233B74' });
+    }
+    return map;
+  }, [nodeTypes]);
+
+  const layout = React.useMemo(() => {
+    const width = 960;
+    const levelHeight = 120;
+    const depths = new Map<string, number>();
+    const positions = new Map<string, { x: number; y: number }>();
+
+    const incoming = new Map<string, string[]>();
+    for (const edge of edges) {
+      const list = incoming.get(edge.target) ?? [];
+      list.push(edge.source);
+      incoming.set(edge.target, list);
+    }
+
+    const roots = nodes.filter((n) => !incoming.has(n.id));
+    const queue = roots.map((r) => ({ id: r.id, depth: 0 }));
+    const seen = new Set<string>();
+
+    while (queue.length > 0) {
+      const item = queue.shift()!;
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      depths.set(item.id, item.depth);
+      for (const edge of edges.filter((e) => e.source === item.id)) {
+        queue.push({ id: edge.target, depth: item.depth + 1 });
+      }
+    }
+
+    for (const node of nodes) {
+      if (!depths.has(node.id)) depths.set(node.id, 0);
+    }
+
+    const byDepth = new Map<number, string[]>();
+    for (const node of nodes) {
+      const depth = depths.get(node.id) ?? 0;
+      const list = byDepth.get(depth) ?? [];
+      list.push(node.id);
+      byDepth.set(depth, list);
+    }
+
+    for (const [depth, ids] of byDepth) {
+      ids.forEach((id, index) => {
+        const spacing = width / (ids.length + 1);
+        positions.set(id, {
+          x: spacing * (index + 1) - 100,
+          y: 30 + depth * levelHeight,
+        });
+      });
+    }
+
+    const maxDepth = Math.max(0, ...Array.from(depths.values()));
+    return {
+      positions,
+      width,
+      height: 50 + (maxDepth + 1) * levelHeight,
+    };
+  }, [nodes, edges]);
+
+  const outgoing = (nodeId: string) => edges.filter((e) => e.source === nodeId);
+
+  return (
+    <div className="space-y-4 print:space-y-3">
+      {/* Visual SVG Diagram */}
+      <div className="rounded border border-zinc-300 bg-white p-3 overflow-hidden">
+        <svg
+          viewBox={`0 0 ${layout.width} ${layout.height}`}
+          className="w-full h-auto max-w-full mx-auto"
+          role="img"
+          aria-label="Troubleshooting Flowchart"
+        >
+          <defs>
+            <marker
+              id="bos-arrow-print"
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill="#334155" />
+            </marker>
+          </defs>
+
+          {/* Edges */}
+          {edges.map((edge) => {
+            const from = layout.positions.get(edge.source);
+            const to = layout.positions.get(edge.target);
+            if (!from || !to) return null;
+
+            const x1 = from.x + 100;
+            const y1 = from.y + 30;
+            const x2 = to.x + 100;
+            const y2 = to.y + 30;
+            const midY = (y1 + y2) / 2;
+
+            const isYes = (edge.label || '').toLowerCase() === 'yes';
+            const isNo = (edge.label || '').toLowerCase() === 'no';
+
+            return (
+              <g key={edge.id}>
+                <path
+                  d={`M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`}
+                  fill="none"
+                  stroke={isYes ? '#059669' : isNo ? '#d97706' : '#64748b'}
+                  strokeWidth={2}
+                  markerEnd="url(#bos-arrow-print)"
+                />
+                {edge.label && (
+                  <g transform={`translate(${(x1 + x2) / 2}, ${midY})`}>
+                    <rect
+                      x={-18}
+                      y={-9}
+                      width={36}
+                      height={18}
+                      rx={3}
+                      fill={isYes ? '#059669' : isNo ? '#d97706' : '#475569'}
+                    />
+                    <text
+                      x={0}
+                      y={3.5}
+                      textAnchor="middle"
+                      fill="#ffffff"
+                      fontSize={9.5}
+                      fontWeight="bold"
+                    >
+                      {edge.label}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Nodes */}
+          {nodes.map((node) => {
+            const pos = layout.positions.get(node.id);
+            if (!pos) return null;
+            const typeInfo = typeByKey.get(node.data.nodeType);
+            const color = typeInfo?.color ?? '#233B74';
+
+            return (
+              <g key={node.id} transform={`translate(${pos.x}, ${pos.y})`}>
+                <rect
+                  width={200}
+                  height={60}
+                  rx={6}
+                  fill="#ffffff"
+                  stroke={color}
+                  strokeWidth={2}
+                />
+                <rect
+                  width={200}
+                  height={18}
+                  rx={4}
+                  fill={`${color}25`}
+                />
+                <text
+                  x={8}
+                  y={13}
+                  fill={color}
+                  fontSize={9}
+                  fontWeight="bold"
+                >
+                  {(typeInfo?.label ?? node.data.nodeType).toUpperCase()}
+                </text>
+                <text
+                  x={100}
+                  y={38}
+                  textAnchor="middle"
+                  fill="#0f172a"
+                  fontSize={10.5}
+                  fontWeight="bold"
+                >
+                  {node.data.label.length > 26
+                    ? `${node.data.label.slice(0, 25)}…`
+                    : node.data.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Structured Decision Table */}
+      <div className="border border-zinc-300 rounded overflow-hidden">
+        <table className="w-full text-left text-2xs border-collapse">
+          <thead>
+            <tr className="bg-zinc-100 border-b border-zinc-300 text-zinc-900">
+              <th className="p-1.5 font-semibold w-8">#</th>
+              <th className="p-1.5 font-semibold w-24">Type</th>
+              <th className="p-1.5 font-semibold">Diagnostic / Action Step</th>
+              <th className="p-1.5 font-semibold">Branches &amp; Resolution</th>
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map((node, idx) => {
+              const typeInfo = typeByKey.get(node.data.nodeType);
+              const nodeBranches = outgoing(node.id);
+
+              return (
+                <tr key={node.id} className="border-b border-zinc-200 last:border-b-0">
+                  <td className="p-1.5 text-zinc-600 align-top font-bold">{idx + 1}</td>
+                  <td className="p-1.5 align-top">
+                    <span
+                      className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                      style={{
+                        backgroundColor: `${typeInfo?.color ?? '#233B74'}18`,
+                        color: typeInfo?.color ?? '#233B74',
+                        border: `1px solid ${typeInfo?.color ?? '#233B74'}40`,
+                      }}
+                    >
+                      {typeInfo?.label ?? node.data.nodeType}
+                    </span>
+                  </td>
+                  <td className="p-1.5 align-top text-zinc-900 font-medium">
+                    <div>{node.data.label}</div>
+                    {node.data.description && (
+                      <div className="text-[10px] text-zinc-600 mt-0.5">{node.data.description}</div>
+                    )}
+                  </td>
+                  <td className="p-1.5 align-top text-zinc-700">
+                    {nodeBranches.length > 0 ? (
+                      <div className="space-y-0.5">
+                        {nodeBranches.map((b) => {
+                          const targetNode = nodes.find((n) => n.id === b.target);
+                          const isYes = (b.label || '').toLowerCase() === 'yes';
+                          const isNo = (b.label || '').toLowerCase() === 'no';
+                          return (
+                            <div key={b.id} className="flex items-center gap-1.5">
+                              <span
+                                className={`px-1 py-0.2 rounded font-bold text-[9px] ${
+                                  isYes
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : isNo
+                                    ? 'bg-amber-100 text-amber-800'
+                                    : 'bg-zinc-100 text-zinc-800'
+                                }`}
+                              >
+                                {b.label || 'Next'}
+                              </span>
+                              <span>→ {targetNode?.data.label ?? b.target}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-zinc-500 italic">Terminal Step</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

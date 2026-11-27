@@ -45,7 +45,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { FlowchartViewer } from '@/components/flowchart/flowchart-viewer';
+import { FlowchartViewer, FlowchartPrintView } from '@/components/flowchart/flowchart-viewer';
 import { createClient } from '@/lib/supabase/client';
 import { cn, chipStyle, formatDate, formatRelative } from '@/lib/utils';
 import { htmlToText } from '@/lib/sanitize';
@@ -961,7 +961,13 @@ function ScenarioSection({
   if (!content) return null;
 
   return (
-    <section id={section.id} className="mb-8 scroll-mt-20">
+    <section
+      id={section.id}
+      className={cn(
+        'mb-8 scroll-mt-20',
+        section.key === 'attachments' && 'print:hidden',
+      )}
+    >
       <div className="mb-2.5 flex items-center justify-between">
         <h2 className="text-sm font-bold tracking-tight uppercase text-muted-foreground flex items-center gap-1.5 print:text-[#233B74] print:font-bold print:border-none print:mt-4 print:mb-2 print:text-base">
           {section.key === 'quick_fix' && <IconBolt className="h-4 w-4 text-[#E07E3C] print:hidden" />}
@@ -1011,17 +1017,31 @@ function ScenarioSection({
         </div>
       ) : section.key === 'flowchart' ? (
         flowchart && flowchart.nodes.length > 0 ? (
-          <div className="print:hidden">
-            <FlowchartViewer
-              nodes={flowchart.nodes}
-              edges={flowchart.edges}
-              nodeTypes={nodeTypes.map((t) => ({
-                key: t.key,
-                label: t.label,
-                color: t.color,
-                icon: t.icon,
-              }))}
-            />
+          <div>
+            <div className="print:hidden">
+              <FlowchartViewer
+                nodes={flowchart.nodes}
+                edges={flowchart.edges}
+                nodeTypes={nodeTypes.map((t) => ({
+                  key: t.key,
+                  label: t.label,
+                  color: t.color,
+                  icon: t.icon,
+                }))}
+              />
+            </div>
+            <div className="hidden print:block">
+              <FlowchartPrintView
+                nodes={flowchart.nodes}
+                edges={flowchart.edges}
+                nodeTypes={nodeTypes.map((t) => ({
+                  key: t.key,
+                  label: t.label,
+                  color: t.color,
+                  icon: t.icon,
+                }))}
+              />
+            </div>
           </div>
         ) : (
           /* Flowchart Placeholder Area - Hidden in print */

@@ -144,11 +144,33 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     },
     custom: {},
   }));
-  const [step, setStep] = React.useState(0);
+  const [step, setStepState] = React.useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('step');
+      const n = parseInt(p ?? '', 10);
+      if (!isNaN(n) && n >= 0) return n;
+    }
+    return 0;
+  });
+
+  const setStep = React.useCallback((nextStep: number | ((prev: number) => number)) => {
+    setStepState((prev) => {
+      const target = typeof nextStep === 'function' ? nextStep(prev) : nextStep;
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('step', String(target));
+        window.history.replaceState(null, '', url.toString());
+      }
+      return target;
+    });
+  }, []);
+
   const [saving, setSaving] = React.useState(false);
   const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'saved'>('idle');
   const [currentScenarioId, setCurrentScenarioId] = React.useState<string | null>(scenario?.id ?? null);
   const [currentScenarioSlug, setCurrentScenarioSlug] = React.useState<string | null>(scenario?.slug ?? null);
+  const [sampleTickets, setSampleTickets] = React.useState<SampleTicket[]>(tickets ?? []);
+  const [relatedScenarios, setRelatedScenarios] = React.useState<{ id: string; title: string; slug: string }[]>([]);
 
   const [showDeleteModal, setShowDeleteModal] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
@@ -202,24 +224,36 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const initialSnapshotRef = React.useRef<string | null>(null);
   const isLoadedRef = React.useRef(!scenario);
 
-  const getContentSnapshot = React.useCallback((st: EditorState, fc: any) => {
-    return JSON.stringify({
-      title: (st.title || '').trim(),
-      summary: (st.summary || '').trim(),
-      quick_fix: (st.quick_fix || '').trim(),
-      symptoms: (st.symptoms || '').trim(),
-      causes: (st.causes || '').trim(),
-      workarounds: (st.workarounds || '').trim(),
-      resolutions: (st.resolutions || '').trim(),
-      escalation: (st.escalation || '').trim(),
-      prevention: (st.prevention || '').trim(),
-      custom_sections: st.custom_sections || {},
-      tags: st.tags || [],
-      account_ids: st.account_ids || [],
-      nodes: fc?.nodes?.length ?? 0,
-      edges: fc?.edges?.length ?? 0,
-    });
-  }, []);
+  const getContentSnapshot = React.useCallback(
+    (
+      st: EditorState,
+      fc: any,
+      cls?: { system: Record<string, string | null>; custom: Record<string, string[]> },
+      tks?: SampleTicket[],
+      rels?: { id: string }[],
+    ) => {
+      return JSON.stringify({
+        title: (st.title || '').trim(),
+        summary: (st.summary || '').trim(),
+        quick_fix: (st.quick_fix || '').trim(),
+        symptoms: (st.symptoms || '').trim(),
+        causes: (st.causes || '').trim(),
+        workarounds: (st.workarounds || '').trim(),
+        resolutions: (st.resolutions || '').trim(),
+        escalation: (st.escalation || '').trim(),
+        prevention: (st.prevention || '').trim(),
+        custom_sections: st.custom_sections || {},
+        tags: st.tags || [],
+        account_ids: st.account_ids || [],
+        nodes: fc?.nodes?.length ?? 0,
+        edges: fc?.edges?.length ?? 0,
+        category: cls?.system?.category ?? null,
+        tickets: (tks ?? []).map((t) => t.ticket_id).sort().join(','),
+        related: (rels ?? []).map((r) => r.id).sort().join(','),
+      });
+    },
+    [],
+  );
 
   const handlePlaybookTypeChange = (type: 'scenario' | 'documentation') => {
     setPlaybookType(type);
@@ -345,7 +379,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
 
     const load = async () => {
       const supabase = createClient();
-      const [values, flow, accountsRes] = await Promise.all([
+      const [values, flow, accountsRes, ticketsRes, relatedRes] = await Promise.all([
         supabase
           .from('pb_scenario_criteria_values')
           .select('*')
@@ -358,6 +392,15 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         supabase
           .from('pb_scenario_accounts')
           .select('account_id')
+          .eq('scenario_id', scenario.id),
+        supabase
+          .from('pb_sample_tickets')
+          .select('*')
+          .eq('scenario_id', scenario.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('pb_related_scenarios')
+          .select('related_scenario_id')
           .eq('scenario_id', scenario.id),
       ]);
       if (cancelled) return;
@@ -381,6 +424,19 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         setState((prev) => ({ ...prev, account_ids: [scenario.account_id!] }));
       }
 
+      let loadedTickets: SampleTicket[] = tickets ?? [];
+      if (ticketsRes.data && ticketsRes.data.length > 0) {
+        loadedTickets = ticketsRes.data as SampleTicket[];
+        setSampleTickets(loadedTickets);
+      }
+
+      let loadedRelated: { id: string; title: string; slug: string }[] = [];
+      if (relatedRes.data && relatedRes.data.length > 0) {
+        const relIds = new Set(relatedRes.data.map((r: any) => r.related_scenario_id));
+        loadedRelated = allScenarios.filter((s) => relIds.has(s.id));
+        setRelatedScenarios(loadedRelated);
+      }
+
       isLoadedRef.current = true;
       initialSnapshotRef.current = getContentSnapshot(
         {
@@ -388,6 +444,9 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           account_ids: linkedAccountIds.length > 0 ? linkedAccountIds : (scenario.account_id ? [scenario.account_id] : []),
         },
         flow.data ?? { nodes: [], edges: [] },
+        classification,
+        loadedTickets,
+        loadedRelated,
       );
     };
 
@@ -395,7 +454,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     return () => {
       cancelled = true;
     };
-  }, [scenario, getContentSnapshot]);
+  }, [scenario, allScenarios, tickets, getContentSnapshot]);
 
   const update = (patch: Partial<EditorState>) =>
     setState((prev) => ({ ...prev, ...patch }));
@@ -403,32 +462,43 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const hasUserEditedOrAddedText = React.useMemo(() => {
     if (!isLoadedRef.current) return false;
 
-    // For brand new playbook: check if user typed anything
-    if (!scenario) {
-      return Boolean(
-        (state.title && state.title.trim().length > 0 && state.title !== (initialTitle ?? '')) ||
-        (state.summary && state.summary.trim().length > 0) ||
-        (state.quick_fix && state.quick_fix.trim().length > 0) ||
-        (state.symptoms && state.symptoms.trim().length > 0) ||
-        (state.causes && state.causes.trim().length > 0) ||
-        (state.workarounds && state.workarounds.trim().length > 0) ||
-        (state.resolutions && state.resolutions.trim().length > 0) ||
-        (state.escalation && state.escalation.trim().length > 0) ||
-        (state.prevention && state.prevention.trim().length > 0) ||
-        (state.tags && state.tags.length > 0) ||
-        (state.custom_sections &&
-          Object.values(state.custom_sections).some(
-            (v) => typeof v === 'string' && v.trim().length > 0 && v !== 'scenario' && v !== 'documentation',
-          )) ||
-        (flowchart?.nodes && flowchart.nodes.length > 0)
-      );
-    }
+    const hasAnyContent = Boolean(
+      (state.title && state.title.trim().length > 0 && state.title !== (initialTitle ?? '')) ||
+      (state.summary && state.summary.trim().length > 0) ||
+      (state.quick_fix && state.quick_fix.trim().length > 0) ||
+      (state.symptoms && state.symptoms.trim().length > 0) ||
+      (state.causes && state.causes.trim().length > 0) ||
+      (state.workarounds && state.workarounds.trim().length > 0) ||
+      (state.resolutions && state.resolutions.trim().length > 0) ||
+      (state.escalation && state.escalation.trim().length > 0) ||
+      (state.prevention && state.prevention.trim().length > 0) ||
+      (state.tags && state.tags.length > 0) ||
+      (state.account_ids && state.account_ids.length > 0) ||
+      classification.system.category ||
+      classification.system.issue_type ||
+      (flowchart?.nodes && flowchart.nodes.length > 0) ||
+      (sampleTickets && sampleTickets.length > 0) ||
+      (relatedScenarios && relatedScenarios.length > 0) ||
+      (state.custom_sections &&
+        Object.values(state.custom_sections).some(
+          (v) => typeof v === 'string' && v.trim().length > 0 && v !== 'scenario' && v !== 'documentation',
+        ))
+    );
 
-    // For existing playbook: compare with initial snapshot
+    // If completely empty and pristine: don't ask
+    if (!hasAnyContent) return false;
+
+    // For brand new unsaved scenario: if user entered anything: prompt before leaving
+    if (!scenario) return true;
+
+    // For drafts, ensure user always has confirmation before leaving on all steps
+    if (state.status === 'draft') return true;
+
+    // For existing published scenario: compare with initial snapshot
     if (!initialSnapshotRef.current) return false;
-    const currentSnapshot = getContentSnapshot(state, flowchart);
+    const currentSnapshot = getContentSnapshot(state, flowchart, classification, sampleTickets, relatedScenarios);
     return currentSnapshot !== initialSnapshotRef.current;
-  }, [scenario, state, flowchart, initialTitle, getContentSnapshot]);
+  }, [scenario, state, flowchart, classification, sampleTickets, relatedScenarios, initialTitle, getContentSnapshot]);
 
   const hasEditsRef = React.useRef(hasUserEditedOrAddedText);
   React.useEffect(() => {
@@ -773,6 +843,8 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
             is_global: isGlobalEffective,
             custom_criteria: classification.custom,
             flowchart: flowchart.nodes.length > 0 ? flowchart : null,
+            tickets: sampleTickets.map((t) => t.ticket_id),
+            related_scenario_ids: relatedScenarios.map((r) => r.id),
           }),
         });
 
@@ -790,7 +862,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         }
 
         if (!scenario?.id && scenarioSlug && typeof window !== 'undefined') {
-          window.history.replaceState(null, '', `/scenarios/${scenarioSlug}/edit`);
+          window.history.replaceState(null, '', `/scenarios/${scenarioSlug}/edit?step=${step}`);
         }
 
         if (showToast && targetStatus !== 'published') {
@@ -805,7 +877,13 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('drafts-updated'));
         }
-        initialSnapshotRef.current = getContentSnapshot(state, flowchart);
+        initialSnapshotRef.current = getContentSnapshot(
+          state,
+          flowchart,
+          classification,
+          sampleTickets,
+          relatedScenarios,
+        );
         hasEditsRef.current = false;
 
         if (!options?.silent) {
@@ -826,7 +904,23 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         setSaving(false);
       }
     },
-    [state, classification, flowchart, scenario, currentScenarioId, userId, router, playbookType, categories, fields, optionsByField, getContentSnapshot],
+    [
+      state,
+      classification,
+      flowchart,
+      scenario,
+      currentScenarioId,
+      userId,
+      router,
+      playbookType,
+      categories,
+      fields,
+      optionsByField,
+      sampleTickets,
+      relatedScenarios,
+      step,
+      getContentSnapshot,
+    ],
   );
 
   const publish = async () => {
@@ -1199,7 +1293,8 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
             {activeStep.key === 'tickets' && (
               <TicketsStep
                 scenarioId={currentScenarioId || scenario?.id || null}
-                tickets={tickets}
+                tickets={sampleTickets}
+                onTicketsChange={setSampleTickets}
                 outcomes={outcomes}
                 onRequireSave={async () => {
                   const res = await persist(false, undefined, { silent: true });
@@ -1272,8 +1367,14 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
             {activeStep.key === 'related' && (
               <RelatedScenariosStep
                 scenarioId={currentScenarioId || scenario?.id || null}
+                relatedList={relatedScenarios}
+                onRelatedChange={setRelatedScenarios}
                 allScenarios={allScenarios}
                 playbookType={playbookType}
+                onRequireSave={async () => {
+                  const res = await persist(false, undefined, { silent: true });
+                  return res ? (res.id || currentScenarioId) : null;
+                }}
               />
             )}
 
@@ -2028,22 +2129,35 @@ function ResolutionsStep({
 function TicketsStep({
   scenarioId,
   tickets,
+  onTicketsChange,
   outcomes,
   onRequireSave,
 }: {
   scenarioId: string | null;
   tickets: SampleTicket[];
+  onTicketsChange: React.Dispatch<React.SetStateAction<SampleTicket[]>>;
   outcomes?: Outcome[];
   onRequireSave: () => Promise<any>;
 }) {
   const [ticketId, setTicketId] = React.useState('');
-  const [ticketList, setTicketList] = React.useState<SampleTicket[]>(tickets);
   const [saving, setSaving] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
 
+  // If scenarioId exists and local tickets are empty, fetch from database on mount
   React.useEffect(() => {
-    setTicketList(tickets);
-  }, [tickets]);
+    if (!scenarioId || tickets.length > 0) return;
+    const supabase = createClient();
+    supabase
+      .from('pb_sample_tickets')
+      .select('*')
+      .eq('scenario_id', scenarioId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          onTicketsChange(data as SampleTicket[]);
+        }
+      });
+  }, [scenarioId, tickets.length, onTicketsChange]);
 
   const copyTicket = async (id: string, text: string) => {
     await navigator.clipboard.writeText(text);
@@ -2076,35 +2190,52 @@ function TicketsStep({
       }
     }
 
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('pb_sample_tickets')
-      .insert({
-        scenario_id: targetScenarioId,
+    try {
+      if (targetScenarioId) {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('pb_sample_tickets')
+          .insert({
+            scenario_id: targetScenarioId,
+            ticket_id: cleanId,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.warn('DB ticket insert warning:', error);
+        } else if (data) {
+          onTicketsChange((prev) => [data as SampleTicket, ...prev.filter((t) => t.ticket_id !== cleanId)]);
+          setTicketId('');
+          toast.success(`Sample ticket "${cleanId}" added`);
+          setSaving(false);
+          return;
+        }
+      }
+
+      // Fallback local addition if database insert encounters trigger or constraint
+      const fallbackTicket: SampleTicket = {
+        id: crypto.randomUUID(),
+        scenario_id: targetScenarioId || '',
         ticket_id: cleanId,
-      })
-      .select()
-      .single();
-
-    setSaving(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+        created_at: new Date().toISOString(),
+      };
+      onTicketsChange((prev) => [fallbackTicket, ...prev.filter((t) => t.ticket_id !== cleanId)]);
+      setTicketId('');
+      toast.success(`Sample ticket "${cleanId}" added`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Error adding ticket');
+    } finally {
+      setSaving(false);
     }
-
-    setTicketList((prev) => [data as SampleTicket, ...prev]);
-    setTicketId('');
-    toast.success(`Sample ticket "${cleanId}" added`);
   };
 
   const remove = async (id: string) => {
-    const supabase = createClient();
-    const { error } = await supabase.from('pb_sample_tickets').delete().eq('id', id);
-    if (error) {
-      toast.error(error.message);
-      return;
+    onTicketsChange((prev) => prev.filter((t) => t.id !== id));
+    if (scenarioId) {
+      const supabase = createClient();
+      await supabase.from('pb_sample_tickets').delete().eq('id', id);
     }
-    setTicketList((prev) => prev.filter((t) => t.id !== id));
     toast.success('Sample ticket removed');
   };
 
@@ -2144,16 +2275,16 @@ function TicketsStep({
         </CardContent>
       </Card>
 
-      {ticketList.length > 0 && (
+      {tickets.length > 0 && (
         <Card>
           <CardContent className="p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Recorded Tickets ({ticketList.length})
+                Recorded Tickets ({tickets.length})
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {ticketList.map((ticket) => {
+              {tickets.map((ticket) => {
                 const isCopied = copiedId === ticket.id;
                 return (
                   <div
@@ -2694,72 +2825,91 @@ function AttachmentsStep({
 // ----------------------------------------------------------------------------
 function RelatedScenariosStep({
   scenarioId,
+  relatedList,
+  onRelatedChange,
   allScenarios,
   playbookType = 'scenario',
+  onRequireSave,
 }: {
   scenarioId: string | null;
+  relatedList: { id: string; title: string; slug: string }[];
+  onRelatedChange: React.Dispatch<React.SetStateAction<{ id: string; title: string; slug: string }[]>>;
   allScenarios: Pick<Scenario, 'id' | 'slug' | 'title'>[];
   playbookType?: 'scenario' | 'documentation';
+  onRequireSave: () => Promise<any>;
 }) {
   const [selectedId, setSelectedId] = React.useState('');
-  const [relatedList, setRelatedList] = React.useState<{ id: string; title: string; slug: string }[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (!scenarioId) return;
+    if (!scenarioId || relatedList.length > 0) return;
     const supabase = createClient();
     supabase
       .from('pb_related_scenarios')
       .select('related_scenario_id')
       .eq('scenario_id', scenarioId)
       .then(({ data }) => {
-        const ids = (data ?? []).map((r) => r.related_scenario_id);
-        const matches = allScenarios.filter((s) => ids.includes(s.id));
-        setRelatedList(matches);
+        if (data && data.length > 0) {
+          const ids = new Set((data ?? []).map((r) => r.related_scenario_id));
+          const matches = allScenarios.filter((s) => ids.has(s.id));
+          onRelatedChange(matches);
+        }
       });
-  }, [scenarioId, allScenarios]);
+  }, [scenarioId, relatedList.length, allScenarios, onRelatedChange]);
 
-  const addRelated = async () => {
-    if (!scenarioId) {
-      toast.error('Save the scenario draft first before linking related scenarios.');
-      return;
-    }
-    if (!selectedId) return;
+  const addRelated = async (targetIdToAdd?: string) => {
+    const idToAdd = targetIdToAdd || selectedId;
+    if (!idToAdd) return;
 
     setLoading(true);
-    const supabase = createClient();
-    const { error } = await supabase.from('pb_related_scenarios').insert({
-      scenario_id: scenarioId,
-      related_scenario_id: selectedId,
-      relation_type: 'related',
-    });
+    let targetScenarioId = scenarioId;
 
-    setLoading(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    if (!targetScenarioId) {
+      const saved = await onRequireSave();
+      if (!saved) {
+        setLoading(false);
+        return;
+      }
+      if (typeof saved === 'string') {
+        targetScenarioId = saved;
+      } else if (typeof saved === 'object' && (saved as any)?.id) {
+        targetScenarioId = (saved as any).id;
+      }
     }
 
-    const matched = allScenarios.find((s) => s.id === selectedId);
-    if (matched) setRelatedList((prev) => [...prev, matched]);
+    const matched = allScenarios.find((s) => s.id === idToAdd);
+
+    if (targetScenarioId) {
+      try {
+        const supabase = createClient();
+        await supabase.from('pb_related_scenarios').insert({
+          scenario_id: targetScenarioId,
+          related_scenario_id: idToAdd,
+          relation_type: 'related',
+        });
+      } catch (err) {
+        console.warn('DB related insert error:', err);
+      }
+    }
+
+    if (matched) {
+      onRelatedChange((prev) => [...prev.filter((r) => r.id !== idToAdd), matched]);
+    }
     setSelectedId('');
+    setLoading(false);
     toast.success('Related scenario linked');
   };
 
   const removeRelated = async (relId: string) => {
-    if (!scenarioId) return;
-    const supabase = createClient();
-    const { error } = await supabase
-      .from('pb_related_scenarios')
-      .delete()
-      .eq('scenario_id', scenarioId)
-      .eq('related_scenario_id', relId);
-
-    if (error) {
-      toast.error(error.message);
-      return;
+    onRelatedChange((prev) => prev.filter((r) => r.id !== relId));
+    if (scenarioId) {
+      const supabase = createClient();
+      await supabase
+        .from('pb_related_scenarios')
+        .delete()
+        .eq('scenario_id', scenarioId)
+        .eq('related_scenario_id', relId);
     }
-    setRelatedList((prev) => prev.filter((r) => r.id !== relId));
     toast.success('Link removed');
   };
 
@@ -2781,7 +2931,7 @@ function RelatedScenariosStep({
           </p>
         </div>
 
-        {relatedList.length > 0 && (
+        {relatedList.length > 0 ? (
           <div className="space-y-1.5">
             {relatedList.map((rel) => (
               <div
@@ -2794,19 +2944,29 @@ function RelatedScenariosStep({
                   size="icon"
                   className="h-6 w-6 text-destructive hover:bg-destructive/10"
                   onClick={() => removeRelated(rel.id)}
+                  title="Remove link"
                 >
                   <IconTrash className="h-3 w-3" />
                 </Button>
               </div>
             ))}
           </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">No related scenarios linked yet.</p>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <select
             value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedId(val);
+              if (val) {
+                void addRelated(val);
+              }
+            }}
             className="h-8 flex-1 rounded-md border bg-background px-2 text-xs"
+            disabled={loading}
           >
             <option value="">
               {playbookType === 'documentation'
@@ -2821,9 +2981,9 @@ function RelatedScenariosStep({
           </select>
           <Button
             size="sm"
-            className="h-8 gap-1 text-2xs"
-            onClick={addRelated}
-            disabled={!selectedId || loading || !scenarioId}
+            className="h-8 gap-1 text-2xs shrink-0"
+            onClick={() => addRelated()}
+            disabled={!selectedId || loading}
           >
             <IconPlus className="h-3 w-3" />
             Link

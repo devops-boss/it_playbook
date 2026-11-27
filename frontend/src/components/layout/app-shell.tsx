@@ -61,8 +61,15 @@ export function AppShell({
   // Automatically refresh server-rendered data when navigating between pages
   React.useEffect(() => {
     if (previousPathRef.current !== pathname) {
+      const isEditorTransition =
+        previousPathRef.current === '/scenarios/new' &&
+        pathname.startsWith('/scenarios/') &&
+        pathname.endsWith('/edit');
+
       previousPathRef.current = pathname;
-      router.refresh();
+      if (!isEditorTransition) {
+        router.refresh();
+      }
     }
   }, [pathname, router]);
 
