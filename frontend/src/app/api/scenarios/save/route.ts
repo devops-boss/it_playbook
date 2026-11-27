@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -118,10 +119,11 @@ export async function POST(request: NextRequest) {
       console.warn('Non-fatal error syncing scenario criteria values:', critErr);
     }
 
-    // Sync flowchart
+    // Sync flowchart using admin client to prevent RLS blocks
     try {
       if (flowchart && Array.isArray(flowchart.nodes) && flowchart.nodes.length > 0) {
-        await supabase.from('pb_flowcharts').upsert(
+        const adminSupabase = createAdminClient();
+        await adminSupabase.from('pb_flowcharts').upsert(
           {
             scenario_id: scenarioId,
             nodes: flowchart.nodes,
@@ -134,35 +136,37 @@ export async function POST(request: NextRequest) {
       console.warn('Non-fatal error syncing flowchart:', fcErr);
     }
 
-    // Sync sample tickets (pb_sample_tickets)
+    // Sync sample tickets using admin client (pb_sample_tickets)
     try {
-      if (Array.isArray(body.tickets) && body.tickets.length > 0) {
-        const { data: existingTickets } = await supabase
-          .from('pb_sample_tickets')
-          .select('ticket_id')
-          .eq('scenario_id', scenarioId);
-        const existingSet = new Set((existingTickets ?? []).map((t: any) => String(t.ticket_id || '').toUpperCase()));
-
-        const toInsert = body.tickets
-          .map((t: any) => (typeof t === 'string' ? t.trim() : String(t?.ticket_id || '').trim()))
-          .filter((t: string) => t && !existingSet.has(t.toUpperCase()))
-          .map((ticketId: string) => ({
-            scenario_id: scenarioId,
-            ticket_id: ticketId,
-          }));
-
-        if (toInsert.length > 0) {
-          await supabase.from('pb_sample_tickets').insert(toInsert);
+      if (Array.isArray(body.tickets)) {
+        const adminSupabase = createAdminClient();
+        await adminSupabase.from('pb_sample_tickets').delete().eq('scenario_id', scenarioId);
+        if (body.tickets.length > 0) {
+          const uniqueTickets = Array.from(
+            new Set(
+              body.tickets
+                .map((t: any) => (typeof t === 'string' ? t.trim() : String(t?.ticket_id || '').trim()))
+                .filter(Boolean),
+            ),
+          );
+          if (uniqueTickets.length > 0) {
+            const rows = uniqueTickets.map((ticketId: string) => ({
+              scenario_id: scenarioId,
+              ticket_id: ticketId,
+            }));
+            await adminSupabase.from('pb_sample_tickets').insert(rows);
+          }
         }
       }
     } catch (tkErr) {
       console.warn('Non-fatal error syncing sample tickets:', tkErr);
     }
 
-    // Sync related scenarios (pb_related_scenarios)
+    // Sync related scenarios using admin client (pb_related_scenarios)
     try {
       if (Array.isArray(body.related_scenario_ids)) {
-        await supabase.from('pb_related_scenarios').delete().eq('scenario_id', scenarioId);
+        const adminSupabase = createAdminClient();
+        await adminSupabase.from('pb_related_scenarios').delete().eq('scenario_id', scenarioId);
         if (body.related_scenario_ids.length > 0) {
           const relRows = body.related_scenario_ids
             .filter((relId: string) => relId && relId !== scenarioId)
@@ -172,7 +176,7 @@ export async function POST(request: NextRequest) {
               relation_type: 'related',
             }));
           if (relRows.length > 0) {
-            await supabase.from('pb_related_scenarios').insert(relRows);
+            await adminSupabase.from('pb_related_scenarios').insert(relRows);
           }
         }
       }

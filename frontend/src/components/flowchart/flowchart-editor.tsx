@@ -32,6 +32,7 @@ import ReactFlow, {
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
+  useReactFlow,
   type Connection,
   type Edge,
   type EdgeChange,
@@ -131,6 +132,7 @@ function FlowchartEditorInner({
   nodeTypes,
   onChange,
 }: FlowchartEditorProps) {
+  const { screenToFlowPosition, project } = useReactFlow();
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [showTest, setShowTest] = React.useState(false);
   const [showValidation, setShowValidation] = React.useState(false);
@@ -295,10 +297,22 @@ function FlowchartEditorInner({
       }
       const next = applyNodeChanges(meaningful, localNodes);
       setLocalNodes(next);
-      commit(next, localEdges);
+      // If user is actively dragging a node across the canvas, avoid firing commit/onChange
+      // 60 times a second to prevent re-render thrashing and autosave conflicts.
+      // onNodeDragStop will commit the final resting position.
+      const isActivelyDragging = meaningful.every(
+        (c) => c.type === 'position' && (c as any).dragging,
+      );
+      if (!isActivelyDragging) {
+        commit(next, localEdges);
+      }
     },
     [localNodes, localEdges, commit],
   );
+
+  const onNodeDragStop = React.useCallback(() => {
+    commit(localNodes, localEdges);
+  }, [localNodes, localEdges, commit]);
 
   const onEdgesChange = React.useCallback(
     (changes: EdgeChange[]) => {
@@ -562,6 +576,7 @@ function FlowchartEditorInner({
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
           onNodeClick={(e, node) => {
             e.stopPropagation();
             setSelectedId(node.id);
@@ -578,9 +593,15 @@ function FlowchartEditorInner({
             const key = event.dataTransfer.getData('application/flow-node-type');
             if (!key) return;
             const bounds = event.currentTarget.getBoundingClientRect();
+            const position = screenToFlowPosition
+              ? screenToFlowPosition({ x: event.clientX, y: event.clientY })
+              : project
+                ? project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
+                : { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+
             addNode(key, {
-              x: Math.round((event.clientX - bounds.left - 90) / GRID) * GRID,
-              y: Math.round((event.clientY - bounds.top - 35) / GRID) * GRID,
+              x: Math.round((position.x - 90) / GRID) * GRID,
+              y: Math.round((position.y - 35) / GRID) * GRID,
             });
           }}
           onDragOver={(event) => {

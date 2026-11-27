@@ -285,9 +285,12 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     }
   };
 
-  // Seed form
+  // Seed form once on mount to prevent clobbering active user typing/dragging
+  const initialSeededIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (scenario) {
+      if (initialSeededIdRef.current === scenario.id) return;
+      initialSeededIdRef.current = scenario.id;
       setState({
         title: scenario.title,
         summary: scenario.summary ?? '',
@@ -315,6 +318,8 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         custom: {},
       });
     } else {
+      if (initialSeededIdRef.current === '__new__') return;
+      initialSeededIdRef.current = '__new__';
       if (initialTitle) {
         setState((prev) => ({ ...prev, title: initialTitle }));
       }
@@ -372,9 +377,12 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     }
   }, [scenario, initialAccountId, initialCategoryId, initialTitle, isGlobalInitial, getContentSnapshot]);
 
-  // Load custom criteria values, flowchart, and scenario accounts
+  // Load custom criteria values, flowchart, and scenario accounts ONCE on mount
+  const initialLoadedExtraIdRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (!scenario) return;
+    if (initialLoadedExtraIdRef.current === scenario.id) return;
+    initialLoadedExtraIdRef.current = scenario.id;
     let cancelled = false;
 
     const load = async () => {
@@ -454,7 +462,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
     return () => {
       cancelled = true;
     };
-  }, [scenario, allScenarios, tickets, getContentSnapshot]);
+  }, [scenario?.id]);
 
   const update = (patch: Partial<EditorState>) =>
     setState((prev) => ({ ...prev, ...patch }));
@@ -697,29 +705,36 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
   const canPublish = Boolean(state.title && state.title.trim().length > 0);
   const incomplete = checklist.filter((i) => !i.done);
 
-  // Autosave every 2.5s
+  // Autosave
   const autosaveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   React.useEffect(() => {
-    if (!scenario) return;
+    const activeId = currentScenarioId || scenario?.id;
+    if (!activeId) return;
 
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     setSaveState('saving');
     autosaveTimer.current = setTimeout(() => {
-      void persist(false).finally(() => setSaveState('saved'));
-    }, 2500);
+      void persist(false, undefined, { silent: true }).finally(() => setSaveState('saved'));
+    }, 4000);
 
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, classification, flowchart]);
+  }, [state, classification, flowchart, sampleTickets, relatedScenarios]);
 
   // Save / Persist
   const persist = React.useCallback(
     async (
       showToast = true,
       overrideStatus?: Scenario['status'],
-      options?: { silent?: boolean; navigateOnCreate?: boolean; defaultTitle?: string }
+      options?: {
+        silent?: boolean;
+        navigateOnCreate?: boolean;
+        defaultTitle?: string;
+        extraTickets?: string[];
+        extraRelatedIds?: string[];
+      }
     ): Promise<{ success: boolean; id?: string; slug?: string } | false> => {
       let titleToSave = state.title.trim();
       if (!titleToSave && options?.defaultTitle) {
@@ -843,8 +858,8 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
             is_global: isGlobalEffective,
             custom_criteria: classification.custom,
             flowchart: flowchart.nodes.length > 0 ? flowchart : null,
-            tickets: sampleTickets.map((t) => t.ticket_id),
-            related_scenario_ids: relatedScenarios.map((r) => r.id),
+            tickets: options?.extraTickets ?? sampleTickets.map((t) => t.ticket_id),
+            related_scenario_ids: options?.extraRelatedIds ?? relatedScenarios.map((r) => r.id),
           }),
         });
 
@@ -886,9 +901,6 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
         );
         hasEditsRef.current = false;
 
-        if (!options?.silent) {
-          router.refresh();
-        }
         return { success: true, id: scenarioId, slug: scenarioSlug };
       } catch (err: any) {
         console.error('Error saving scenario:', err);
@@ -1296,8 +1308,11 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 tickets={sampleTickets}
                 onTicketsChange={setSampleTickets}
                 outcomes={outcomes}
-                onRequireSave={async () => {
-                  const res = await persist(false, undefined, { silent: true });
+                onRequireSave={async (newTicketId?: string, overrideList?: string[]) => {
+                  const ticketsToSend = overrideList ?? (newTicketId
+                    ? Array.from(new Set([...sampleTickets.map((t) => t.ticket_id), newTicketId]))
+                    : sampleTickets.map((t) => t.ticket_id));
+                  const res = await persist(false, undefined, { silent: true, extraTickets: ticketsToSend });
                   return res ? (res.id || currentScenarioId) : null;
                 }}
               />
@@ -1371,8 +1386,11 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
                 onRelatedChange={setRelatedScenarios}
                 allScenarios={allScenarios}
                 playbookType={playbookType}
-                onRequireSave={async () => {
-                  const res = await persist(false, undefined, { silent: true });
+                onRequireSave={async (newRelId?: string, overrideList?: string[]) => {
+                  const relToSend = overrideList ?? (newRelId
+                    ? Array.from(new Set([...relatedScenarios.map((r) => r.id), newRelId]))
+                    : relatedScenarios.map((r) => r.id));
+                  const res = await persist(false, undefined, { silent: true, extraRelatedIds: relToSend });
                   return res ? (res.id || currentScenarioId) : null;
                 }}
               />
@@ -2137,7 +2155,7 @@ function TicketsStep({
   tickets: SampleTicket[];
   onTicketsChange: React.Dispatch<React.SetStateAction<SampleTicket[]>>;
   outcomes?: Outcome[];
-  onRequireSave: () => Promise<any>;
+  onRequireSave: (newTicketId?: string, overrideList?: string[]) => Promise<any>;
 }) {
   const [ticketId, setTicketId] = React.useState('');
   const [saving, setSaving] = React.useState(false);
@@ -2175,68 +2193,35 @@ function TicketsStep({
     }
 
     setSaving(true);
-    let targetScenarioId = scenarioId;
-
-    if (!targetScenarioId) {
-      const saved = await onRequireSave();
-      if (!saved) {
-        setSaving(false);
-        return;
-      }
-      if (typeof saved === 'string') {
-        targetScenarioId = saved;
-      } else if (typeof saved === 'object' && (saved as any)?.id) {
-        targetScenarioId = (saved as any).id;
-      }
-    }
+    const newTicket: SampleTicket = {
+      id: crypto.randomUUID(),
+      scenario_id: scenarioId || '',
+      ticket_id: cleanId,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [newTicket, ...tickets.filter((t) => t.ticket_id.toUpperCase() !== cleanId.toUpperCase())];
+    onTicketsChange(updated);
+    setTicketId('');
 
     try {
-      if (targetScenarioId) {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('pb_sample_tickets')
-          .insert({
-            scenario_id: targetScenarioId,
-            ticket_id: cleanId,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.warn('DB ticket insert warning:', error);
-        } else if (data) {
-          onTicketsChange((prev) => [data as SampleTicket, ...prev.filter((t) => t.ticket_id !== cleanId)]);
-          setTicketId('');
-          toast.success(`Sample ticket "${cleanId}" added`);
-          setSaving(false);
-          return;
-        }
-      }
-
-      // Fallback local addition if database insert encounters trigger or constraint
-      const fallbackTicket: SampleTicket = {
-        id: crypto.randomUUID(),
-        scenario_id: targetScenarioId || '',
-        ticket_id: cleanId,
-        created_at: new Date().toISOString(),
-      };
-      onTicketsChange((prev) => [fallbackTicket, ...prev.filter((t) => t.ticket_id !== cleanId)]);
-      setTicketId('');
+      await onRequireSave(cleanId, updated.map((t) => t.ticket_id));
       toast.success(`Sample ticket "${cleanId}" added`);
     } catch (err: any) {
-      toast.error(err?.message || 'Error adding ticket');
+      console.warn('Error syncing sample ticket:', err);
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (id: string) => {
-    onTicketsChange((prev) => prev.filter((t) => t.id !== id));
-    if (scenarioId) {
-      const supabase = createClient();
-      await supabase.from('pb_sample_tickets').delete().eq('id', id);
+    const updated = tickets.filter((t) => t.id !== id);
+    onTicketsChange(updated);
+    try {
+      await onRequireSave(undefined, updated.map((t) => t.ticket_id));
+      toast.success('Sample ticket removed');
+    } catch (err: any) {
+      console.warn('Error removing ticket:', err);
     }
-    toast.success('Sample ticket removed');
   };
 
   return (
@@ -2836,7 +2821,7 @@ function RelatedScenariosStep({
   onRelatedChange: React.Dispatch<React.SetStateAction<{ id: string; title: string; slug: string }[]>>;
   allScenarios: Pick<Scenario, 'id' | 'slug' | 'title'>[];
   playbookType?: 'scenario' | 'documentation';
-  onRequireSave: () => Promise<any>;
+  onRequireSave: (targetIdToAdd?: string, overrideList?: string[]) => Promise<any>;
 }) {
   const [selectedId, setSelectedId] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -2861,56 +2846,33 @@ function RelatedScenariosStep({
     const idToAdd = targetIdToAdd || selectedId;
     if (!idToAdd) return;
 
-    setLoading(true);
-    let targetScenarioId = scenarioId;
-
-    if (!targetScenarioId) {
-      const saved = await onRequireSave();
-      if (!saved) {
-        setLoading(false);
-        return;
-      }
-      if (typeof saved === 'string') {
-        targetScenarioId = saved;
-      } else if (typeof saved === 'object' && (saved as any)?.id) {
-        targetScenarioId = (saved as any).id;
-      }
-    }
-
     const matched = allScenarios.find((s) => s.id === idToAdd);
+    if (!matched) return;
 
-    if (targetScenarioId) {
-      try {
-        const supabase = createClient();
-        await supabase.from('pb_related_scenarios').insert({
-          scenario_id: targetScenarioId,
-          related_scenario_id: idToAdd,
-          relation_type: 'related',
-        });
-      } catch (err) {
-        console.warn('DB related insert error:', err);
-      }
-    }
-
-    if (matched) {
-      onRelatedChange((prev) => [...prev.filter((r) => r.id !== idToAdd), matched]);
-    }
+    setLoading(true);
+    const updated = [...relatedList.filter((r) => r.id !== idToAdd), matched];
+    onRelatedChange(updated);
     setSelectedId('');
-    setLoading(false);
-    toast.success('Related scenario linked');
+
+    try {
+      await onRequireSave(idToAdd, updated.map((r) => r.id));
+      toast.success('Related scenario linked');
+    } catch (err) {
+      console.warn('DB related sync error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const removeRelated = async (relId: string) => {
-    onRelatedChange((prev) => prev.filter((r) => r.id !== relId));
-    if (scenarioId) {
-      const supabase = createClient();
-      await supabase
-        .from('pb_related_scenarios')
-        .delete()
-        .eq('scenario_id', scenarioId)
-        .eq('related_scenario_id', relId);
+    const updated = relatedList.filter((r) => r.id !== relId);
+    onRelatedChange(updated);
+    try {
+      await onRequireSave(undefined, updated.map((r) => r.id));
+      toast.success('Link removed');
+    } catch (err) {
+      console.warn('DB related removal error:', err);
     }
-    toast.success('Link removed');
   };
 
   const availableScenarios = allScenarios.filter(
