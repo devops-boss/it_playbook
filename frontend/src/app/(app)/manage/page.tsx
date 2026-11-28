@@ -44,7 +44,7 @@ export default async function ManageHubPage() {
     },
   ];
 
-  if (user.isSuperAdmin) {
+  if (user.isSuperAdmin && user.roleNames.includes('Super Admin')) {
     manageSections.push({
       title: 'Users & Roles',
       description: 'Administer team accounts, roles (Admin / IT Support), and MFA security.',

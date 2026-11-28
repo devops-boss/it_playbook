@@ -1218,7 +1218,7 @@ export function ScenarioEditor(props: ScenarioEditorProps) {
           <div
             className={cn(
               'mx-auto space-y-4 transition-all duration-200',
-              activeStep.key === 'flowchart' ? 'w-full max-w-none' : 'w-full max-w-5xl xl:max-w-6xl 2xl:max-w-7xl',
+              activeStep.key === 'flowchart' ? 'w-full max-w-none' : 'max-w-3xl',
             )}
           >
             {activeStep.key === 'classification' && (
@@ -1791,7 +1791,7 @@ function RichSection({
           <h3 className="text-xs font-semibold">{title}</h3>
           {help && <p className="mt-0.5 text-2xs text-muted-foreground">{help}</p>}
         </div>
-        <RichTextEditor value={value} onChange={onChange} minHeight={300} />
+        <RichTextEditor value={value} onChange={onChange} minHeight={150} />
       </CardContent>
     </Card>
   );
@@ -1986,7 +1986,7 @@ function ResolutionsStep({
               Switch to Step Builder
             </Button>
           </div>
-          <RichTextEditor value={value} onChange={onChange} minHeight={300} />
+          <RichTextEditor value={value} onChange={onChange} minHeight={160} />
         </CardContent>
       </Card>
     );
@@ -2157,8 +2157,8 @@ function ResolutionsStep({
                         ? 'Describe the setup step, configuration change, or procedure... (supports **bold**, *italic*, `code`, __underline__)'
                         : 'e.g. Switch edge router to secondary failover line.'
                     }
-                    rows={4}
-                    className="text-sm min-h-[95px] leading-relaxed"
+                    rows={2}
+                    className="text-xs"
                   />
                   {hasFormatting(it.instruction) && (
                     <div className="rounded border border-dashed bg-muted/20 px-2.5 py-1 text-2xs">
