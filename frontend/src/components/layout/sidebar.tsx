@@ -90,8 +90,15 @@ export function Sidebar({ accounts = [], categories, user, draftsCount = 0 }: Si
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);
 
-  // Users page is Super Admin only (strictly role Super Admin)
-  const canSeeUsers = Boolean(user.isSuperAdmin && user.roleNames?.includes('Super Admin'));
+  // Users page is Super Admin only (strictly role Super Admin and has manage_users permission)
+  const canSeeUsers = Boolean(
+    user.isSuperAdmin &&
+    user.roleNames?.length > 0 &&
+    user.roleNames[0] === 'Super Admin' &&
+    !user.roleNames.includes('IT Ops Editor') &&
+    !user.roleNames.includes('IT Agent') &&
+    !user.roleNames.includes('Reviewer')
+  );
 
   return (
     <aside
