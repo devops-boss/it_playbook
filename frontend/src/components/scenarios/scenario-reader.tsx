@@ -45,6 +45,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { FormattedText } from '@/components/ui/formatted-text';
 import { FlowchartViewer, FlowchartPrintView } from '@/components/flowchart/flowchart-viewer';
 import { createClient } from '@/lib/supabase/client';
 import { cn, chipStyle, formatDate, formatRelative } from '@/lib/utils';
@@ -650,40 +651,34 @@ export function ScenarioReader({
                 <tr className="border-b border-slate-200">
                   <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Document Title:</td>
                   <td className="p-1.5 w-1/4 text-black">{scenario.title}</td>
-                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Document ID:</td>
-                  <td className="p-1.5 w-1/4 font-mono text-black">SOP-{scenario.slug.toUpperCase()}</td>
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Category:</td>
+                  <td className="p-1.5 w-1/4 text-black">{categoryName || 'General IT Operations'}</td>
                 </tr>
                 <tr className="border-b border-slate-200">
-                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Author / Created By:</td>
-                  <td className="p-1.5 text-black">
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Author / Created By:</td>
+                  <td className="p-1.5 w-1/4 text-black">
                     <span>{authorName || 'IT Operations Team'}</span>
                   </td>
-                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Date Created:</td>
-                  <td className="p-1.5 text-black">{formatDate(scenario.created_at)}</td>
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Date Created:</td>
+                  <td className="p-1.5 w-1/4 text-black">{formatDate(scenario.created_at)}</td>
                 </tr>
-                <tr className="border-b border-slate-200">
-                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Category:</td>
-                  <td className="p-1.5 text-black">{categoryName || 'General IT Operations'}</td>
-                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Last Revised:</td>
-                  <td className="p-1.5 text-black">{formatDate(scenario.updated_at)}</td>
-                </tr>
-                <tr className="border-b border-slate-200">
-                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Scope / Target Account:</td>
-                  <td className="p-1.5 text-black">
+                <tr className={cn(tickets.length > 0 && 'border-b border-slate-200')}>
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Scope / Target Account:</td>
+                  <td className="p-1.5 w-1/4 text-black">
                     {scenario.is_global
                       ? 'Global IT Operations'
                       : scenario.account_id && accountNames[scenario.account_id]
                       ? accountNames[scenario.account_id]
                       : 'Account Specific'}
                   </td>
-                  <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Classification:</td>
-                  <td className="p-1.5 text-black">Internal IT SOP Documentation</td>
+                  <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Last Revised:</td>
+                  <td className="p-1.5 w-1/4 text-black">{formatDate(scenario.updated_at)}</td>
                 </tr>
                 {tickets.length > 0 && (
                   <tr>
-                    <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Tracking Tickets:</td>
+                    <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Tracking Ticket:</td>
                     <td colSpan={3} className="p-1.5 font-mono text-black">
-                      {tickets.map((t) => t.ticket_id).join(', ')}
+                      {tickets[0]?.ticket_id}
                     </td>
                   </tr>
                 )}
@@ -953,7 +948,7 @@ function ScenarioSection({
       id={section.id}
       className={cn(
         'mb-8 scroll-mt-20',
-        section.key === 'attachments' && 'print:hidden',
+        (section.key === 'attachments' || section.key === 'sample_tickets') && 'print:hidden',
       )}
     >
       <div className="mb-2.5 flex items-center justify-between">
@@ -979,11 +974,11 @@ function ScenarioSection({
         <div className="rounded-xl border-2 border-[#E07E3C]/50 bg-[#E07E3C]/10 dark:bg-[#E07E3C]/15 p-4 shadow-sm space-y-3 print:border-none print:bg-transparent print:p-0 print:m-0 print:shadow-none">
           <RichText html={scenario.quick_fix} onImageClick={onImageClick} />
           {tickets.length > 0 && (
-            <div className="pt-2.5 border-t border-[#E07E3C]/20 flex flex-wrap items-center gap-2 print:border-none print:pt-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#E07E3C] print:text-[#233B74] print:font-bold">
+            <div className="pt-2.5 border-t border-[#E07E3C]/20 flex flex-wrap items-center gap-2 print:hidden">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#E07E3C]">
                 Reference Tickets:
               </span>
-              <div className="flex flex-wrap gap-1.5 print:hidden">
+              <div className="flex flex-wrap gap-1.5">
                 {tickets.map((t) => (
                   <TicketBadge
                     key={t.id}
@@ -993,9 +988,6 @@ function ScenarioSection({
                   />
                 ))}
               </div>
-              <span className="hidden print:inline font-mono text-xs text-black">
-                {tickets.map((t) => t.ticket_id).join(', ')}
-              </span>
             </div>
           )}
         </div>
@@ -1405,9 +1397,10 @@ function ResolutionsList({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-primary print:text-[10.5pt] print:font-bold print:text-[#233B74]">
                     Step {stepNum}:{' '}
                   </span>
-                  <span className="text-xs leading-relaxed text-foreground print:text-[10pt] print:text-black">
-                    {s.instruction}
-                  </span>
+                  <FormattedText
+                    text={s.instruction}
+                    className="text-xs leading-relaxed text-foreground print:text-[10pt] print:text-black"
+                  />
                 </div>
 
                 {s.command && (

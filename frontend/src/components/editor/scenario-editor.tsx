@@ -7,8 +7,10 @@ import {
   IconAlertCircle,
   IconArchive,
   IconArrowLeft,
+  IconBold,
   IconBook2,
   IconCheck,
+  IconCode,
   IconCopy,
   IconDeviceFloppy,
   IconDownload,
@@ -17,13 +19,17 @@ import {
   IconFileText,
   IconFlame,
   IconHistory,
+  IconItalic,
   IconLoader2,
   IconPaperclip,
   IconPhoto,
   IconPlus,
+  IconStrikethrough,
   IconTrash,
+  IconUnderline,
   IconUpload,
 } from '@tabler/icons-react';
+import { FormattedText, hasFormatting } from '@/components/ui/formatted-text';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1812,8 +1818,44 @@ function ResolutionsStep({
   playbookType?: 'scenario' | 'documentation';
 }) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const textareaRefs = React.useRef<Map<number, HTMLTextAreaElement>>(new Map());
   const [activeUploadIndex, setActiveUploadIndex] = React.useState<number | null>(null);
   const [uploading, setUploading] = React.useState(false);
+
+  const applyFormat = (stepIdx: number, prefix: string, suffix: string) => {
+    const el = textareaRefs.current.get(stepIdx);
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const current = el.value;
+    const selected = current.slice(start, end);
+    const replacement = selected ? `${prefix}${selected}${suffix}` : `${prefix}text${suffix}`;
+    const nextVal = current.slice(0, start) + replacement + current.slice(end);
+    updateStep(stepIdx, { instruction: nextVal });
+    requestAnimationFrame(() => {
+      el.focus();
+      if (selected) {
+        el.setSelectionRange(start, start + replacement.length);
+      } else {
+        el.setSelectionRange(start + prefix.length, start + prefix.length + 4);
+      }
+    });
+  };
+
+  const handleInstructionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, stepIdx: number) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        applyFormat(stepIdx, '**', '**');
+      } else if (e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        applyFormat(stepIdx, '*', '*');
+      } else if (e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        applyFormat(stepIdx, '__', '__');
+      }
+    }
+  };
 
   const [items, setItems] = React.useState<ResolutionStepItem[]>(() => {
     if (!value || !value.trim()) return [];
@@ -2044,21 +2086,86 @@ function ResolutionsStep({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-2xs font-medium">
-                    {playbookType === 'documentation' ? 'Step Instruction / Procedure Details' : 'Instruction'}
-                  </Label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-2xs font-medium">
+                      {playbookType === 'documentation' ? 'Step Instruction / Procedure Details' : 'Instruction'}
+                    </Label>
+                    <div className="flex items-center gap-0.5 rounded border bg-muted/40 px-1 py-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-2xs hover:bg-background"
+                        onClick={() => applyFormat(idx, '**', '**')}
+                        title="Bold (Ctrl+B)"
+                      >
+                        <IconBold className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-2xs hover:bg-background"
+                        onClick={() => applyFormat(idx, '*', '*')}
+                        title="Italic (Ctrl+I)"
+                      >
+                        <IconItalic className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-2xs hover:bg-background"
+                        onClick={() => applyFormat(idx, '__', '__')}
+                        title="Underline (Ctrl+U)"
+                      >
+                        <IconUnderline className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-2xs hover:bg-background"
+                        onClick={() => applyFormat(idx, '`', '`')}
+                        title="Inline Code"
+                      >
+                        <IconCode className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 text-2xs hover:bg-background"
+                        onClick={() => applyFormat(idx, '~~', '~~')}
+                        title="Strikethrough"
+                      >
+                        <IconStrikethrough className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                   <Textarea
+                    ref={(el) => {
+                      if (el) textareaRefs.current.set(idx, el);
+                      else textareaRefs.current.delete(idx);
+                    }}
                     value={it.instruction}
                     onChange={(e) => updateStep(idx, { instruction: e.target.value })}
+                    onKeyDown={(e) => handleInstructionKeyDown(e, idx)}
                     placeholder={
                       playbookType === 'documentation'
-                        ? 'Describe the setup step, configuration change, or procedure...'
+                        ? 'Describe the setup step, configuration change, or procedure... (supports **bold**, *italic*, `code`, __underline__)'
                         : 'e.g. Switch edge router to secondary failover line.'
                     }
                     rows={2}
                     className="text-xs"
                   />
+                  {hasFormatting(it.instruction) && (
+                    <div className="rounded border border-dashed bg-muted/20 px-2.5 py-1 text-2xs">
+                      <span className="font-semibold text-primary mr-1">Preview:</span>
+                      <FormattedText text={it.instruction} />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">

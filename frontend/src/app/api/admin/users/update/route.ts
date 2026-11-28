@@ -12,11 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (
-      !currentUser.isSuperAdmin &&
-      !currentUser.permissions.global.has('manage_users') &&
-      !currentUser.permissions.global.has('manage_roles')
-    ) {
+    if (!currentUser.isSuperAdmin) {
       return NextResponse.json(
         { error: 'Permission denied: Only Super Admins can update users' },
         { status: 403 },
