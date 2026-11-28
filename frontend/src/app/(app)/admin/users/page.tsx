@@ -14,7 +14,6 @@ export default async function AdminUsersPage() {
     !user.roleNames?.length ||
     user.roleNames[0] !== 'Super Admin' ||
     user.roleNames.includes('IT Ops Editor') ||
-    user.roleNames.includes('IT Agent') ||
     user.roleNames.includes('Reviewer')
   ) {
     redirect('/');

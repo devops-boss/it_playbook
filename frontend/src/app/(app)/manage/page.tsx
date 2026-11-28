@@ -49,7 +49,6 @@ export default async function ManageHubPage() {
     user.roleNames?.length > 0 &&
     user.roleNames[0] === 'Super Admin' &&
     !user.roleNames.includes('IT Ops Editor') &&
-    !user.roleNames.includes('IT Agent') &&
     !user.roleNames.includes('Reviewer')
   ) {
     manageSections.push({
