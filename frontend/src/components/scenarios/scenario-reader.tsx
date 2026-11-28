@@ -173,11 +173,20 @@ export function ScenarioReader({
     }
   };
 
-  // Sections shown in order honoring admin config
-  const activeSections = React.useMemo(
-    () => sections.filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order),
-    [sections],
-  );
+  // Sections shown in order honoring admin config (in PDF export, sample_tickets is positioned directly above related scenarios)
+  const activeSections = React.useMemo(() => {
+    const list = sections.filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order);
+    const ticketsIdx = list.findIndex((s) => s.key === 'sample_tickets');
+    const relatedIdx = list.findIndex((s) => s.key === 'related');
+    if (ticketsIdx !== -1 && relatedIdx !== -1 && ticketsIdx < relatedIdx) {
+      const ticketsSection = list[ticketsIdx];
+      const withoutTickets = list.filter((_, idx) => idx !== ticketsIdx);
+      const newRelatedIdx = withoutTickets.findIndex((s) => s.key === 'related');
+      withoutTickets.splice(newRelatedIdx, 0, ticketsSection);
+      return withoutTickets;
+    }
+    return list;
+  }, [sections]);
 
   // Quick Fix mode surfaces fix-oriented sections
   const quickSections = React.useMemo(
@@ -626,7 +635,7 @@ export function ScenarioReader({
                     BIG OUTSOURCE
                   </div>
                   <div className="text-[9pt] font-semibold uppercase tracking-wider text-black">
-                    IT Operations Playbook • Standard Operating Procedure
+                    IT Operations Playbook • SOP
                   </div>
                 </div>
               </div>
