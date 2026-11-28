@@ -62,7 +62,11 @@ interface RolesPanelProps {
  * permission globally or for one specific account, which is how a regional
  * editor can be limited to their own client's content.
  */
-export function RolesPanel({ roles, rolePermissions, accounts }: RolesPanelProps) {
+export function RolesPanel({ roles: initialRoles, rolePermissions, accounts }: RolesPanelProps) {
+  const roles = React.useMemo(
+    () => initialRoles.filter((r) => r.name !== 'IT Agent'),
+    [initialRoles],
+  );
   const [permissions, setPermissions] = React.useState(rolePermissions);
   const [saving, setSaving] = React.useState(false);
 
@@ -336,11 +340,15 @@ interface UsersPanelProps {
  */
 export function UsersPanel({
   users,
-  roles,
+  roles: initialRoles,
   accounts,
   isSuperAdmin = false,
   currentUserId,
 }: UsersPanelProps) {
+  const roles = React.useMemo(
+    () => initialRoles.filter((r) => r.name !== 'IT Agent'),
+    [initialRoles],
+  );
   const [list, setList] = React.useState(users);
   const [email, setEmail] = React.useState('');
   const [displayName, setDisplayName] = React.useState('');

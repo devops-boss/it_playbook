@@ -119,6 +119,24 @@ docker compose exec -T db psql -U supabase_admin -d postgres -c "
   END;
   \$\$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth, extensions;
   GRANT EXECUTE ON FUNCTION delete_user_account(UUID, UUID) TO postgres, supabase_admin, service_role, service, authenticated, anon, public;
+  
+  -- Permanently remove IT Agent role and reassign users to IT Ops Editor
+  DO \$\$
+  DECLARE v_agent_id UUID; v_editor_id UUID;
+  BEGIN
+    SELECT id INTO v_agent_id FROM pb_roles WHERE name = 'IT Agent';
+    SELECT id INTO v_editor_id FROM pb_roles WHERE name = 'IT Ops Editor';
+    IF v_agent_id IS NOT NULL THEN
+      IF v_editor_id IS NOT NULL THEN
+        UPDATE pb_user_roles SET role_id = v_editor_id WHERE role_id = v_agent_id;
+        UPDATE pb_user_profiles SET role = 'IT Ops Editor' WHERE role = 'IT Agent';
+      ELSE
+        DELETE FROM pb_user_roles WHERE role_id = v_agent_id;
+      END IF;
+      DELETE FROM pb_role_permissions WHERE role_id = v_agent_id;
+      DELETE FROM pb_roles WHERE id = v_agent_id;
+    END IF;
+  END \$\$;
 " || true
 
 if [ -f "./scripts/migrate.sh" ]; then

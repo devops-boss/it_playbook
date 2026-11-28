@@ -133,9 +133,15 @@ export async function getAdminData(): Promise<AdminData> {
     account_ids: accountIdsByUser.get(profile.id as string) ?? [],
   }));
 
+  const filteredRoles = ((roles.data ?? []) as Role[]).filter(
+    (r) => r.name !== 'IT Agent',
+  );
+
   return {
-    roles: (roles.data ?? []) as Role[],
-    rolePermissions: (rolePermissions.data ?? []) as RolePermission[],
+    roles: filteredRoles,
+    rolePermissions: ((rolePermissions.data ?? []) as RolePermission[]).filter(
+      (rp) => filteredRoles.some((r) => r.id === rp.role_id),
+    ),
     users,
     settings: (globalSettings.data?.settings ?? {}) as Record<string, unknown>,
     accountSettings: (accountSettings.data ?? []) as {
