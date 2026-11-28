@@ -12,9 +12,11 @@ export function Toaster() {
       position="bottom-right"
       richColors
       closeButton
+      className="print:hidden"
       toastOptions={{
+        className: 'print:hidden',
         classNames: {
-          toast: 'text-sm',
+          toast: 'text-sm print:hidden',
         },
       }}
     />

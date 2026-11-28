@@ -483,13 +483,24 @@ textarea {
   textarea,
   [role='button'],
   [role='dialog'],
+  [data-sonner-toaster],
+  [data-sonner-toast],
+  [data-sonner-toaster] *,
+  [data-sonner-toast] *,
+  section[aria-label*='Notification'],
+  section[aria-label*='notification'],
+  ol[data-sonner-toaster],
+  li[data-sonner-toast],
   .toaster,
+  .sonner-toast,
   #sidebar,
   .print\:hidden,
   [data-print-hidden='true'],
   svg.tabler-icon,
   .tabler-icon {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
   }
 
   /* Remove all card containers, colored side bars, red/orange bars, and background boxes */

@@ -334,9 +334,15 @@ export function ScenarioReader({
 
   const printPage = () => {
     if (typeof window !== 'undefined') {
+      try {
+        toast.dismiss();
+      } catch {}
       if (mode !== 'full') {
         setModeState('full');
         setTimeout(() => {
+          try {
+            toast.dismiss();
+          } catch {}
           window.print();
         }, 150);
       } else {
@@ -650,25 +656,7 @@ export function ScenarioReader({
                 <tr className="border-b border-slate-200">
                   <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Author / Created By:</td>
                   <td className="p-1.5 text-black">
-                    <div className="flex items-center gap-1.5">
-                      {authorPhotoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={authorPhotoUrl}
-                          alt=""
-                          className="h-5 w-5 rounded-full object-cover shrink-0 ring-1 ring-slate-300"
-                          style={{ width: '20px', height: '20px', maxWidth: '20px', maxHeight: '20px' }}
-                        />
-                      ) : (
-                        <span
-                          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[9px] font-bold text-slate-700"
-                          style={{ width: '20px', height: '20px' }}
-                        >
-                          {(authorName || 'IT').slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                      <span>{authorName || 'IT Operations Team'}</span>
-                    </div>
+                    <span>{authorName || 'IT Operations Team'}</span>
                   </td>
                   <td className="p-1.5 font-bold bg-slate-50 text-[#233B74]">Date Created:</td>
                   <td className="p-1.5 text-black">{formatDate(scenario.created_at)}</td>
