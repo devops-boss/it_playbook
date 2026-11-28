@@ -46,7 +46,7 @@ export function RichTextEditor({
   value,
   onChange,
   placeholder = 'Write here…',
-  minHeight = 160,
+  minHeight = 280,
   bucket = 'scenario-attachments',
   className,
 }: RichTextEditorProps) {
@@ -76,7 +76,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          'prose-scenario focus:outline-none min-h-[160px] px-3 py-2.5 text-sm leading-relaxed',
+          'prose-scenario focus:outline-none min-h-[280px] px-3.5 py-3 text-sm leading-relaxed',
         'aria-label': 'Rich text content',
       },
     },

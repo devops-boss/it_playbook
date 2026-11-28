@@ -662,7 +662,7 @@ export function ScenarioReader({
                   <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Date Created:</td>
                   <td className="p-1.5 w-1/4 text-black">{formatDate(scenario.created_at)}</td>
                 </tr>
-                <tr className={cn(tickets.length > 0 && 'border-b border-slate-200')}>
+                <tr>
                   <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Scope / Target Account:</td>
                   <td className="p-1.5 w-1/4 text-black">
                     {scenario.is_global
@@ -674,14 +674,6 @@ export function ScenarioReader({
                   <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Last Revised:</td>
                   <td className="p-1.5 w-1/4 text-black">{formatDate(scenario.updated_at)}</td>
                 </tr>
-                {tickets.length > 0 && (
-                  <tr>
-                    <td className="p-1.5 font-bold w-1/4 bg-slate-50 text-[#233B74]">Tracking Ticket:</td>
-                    <td colSpan={3} className="p-1.5 font-mono text-black">
-                      {tickets[0]?.ticket_id}
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -948,7 +940,7 @@ function ScenarioSection({
       id={section.id}
       className={cn(
         'mb-8 scroll-mt-20',
-        (section.key === 'attachments' || section.key === 'sample_tickets') && 'print:hidden',
+        section.key === 'attachments' && 'print:hidden',
       )}
     >
       <div className="mb-2.5 flex items-center justify-between">
@@ -1235,7 +1227,7 @@ function SampleTicketsList({
         ))}
       </div>
       <p className="hidden print:block text-xs font-mono text-black">
-        {tickets.map((t) => t.ticket_id).join(', ')}
+        {tickets[0]?.ticket_id}
       </p>
     </div>
   );

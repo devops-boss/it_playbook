@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!currentUser.isSuperAdmin) {
+    if (!currentUser.isSuperAdmin || !currentUser.roleNames.includes('Super Admin')) {
       return NextResponse.json(
         { error: 'Permission denied: Only Super Admins can create users' },
         { status: 403 },

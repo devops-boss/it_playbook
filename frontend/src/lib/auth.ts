@@ -92,9 +92,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       'User',
     photoUrl: (profile as { photo_url?: string | null } | null)?.photo_url ?? null,
     isSuperAdmin:
-      roleNames.includes('Admin') ||
       roleNames.includes('Super Admin') ||
-      (profile as { role?: string | null } | null)?.role === 'Admin',
+      (roleNames.length === 0 &&
+        ((profile as { role?: string | null } | null)?.role === 'Admin' ||
+          (profile as { role?: string | null } | null)?.role === 'Super Admin')),
     permissions: { global, byAccount },
     accountIds,
     roleNames,

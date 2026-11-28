@@ -9,7 +9,7 @@ export default async function AdminUsersPage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login');
 
-  if (!user.isSuperAdmin) {
+  if (!user.isSuperAdmin || !user.roleNames.includes('Super Admin')) {
     redirect('/');
   }
 
